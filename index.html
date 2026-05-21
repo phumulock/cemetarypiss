@@ -14,7 +14,33 @@
     font-family: 'Courier New', ui-monospace, monospace;
     color: #f0e8e0;
   }
-  canvas { display: block; position: absolute; top: 0; left: 0; }
+  canvas#c { display: block; position: absolute; top: 0; left: 0; }
+
+  .fire-strip {
+    position: fixed;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 25px;
+    z-index: 4;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    display: block;
+    pointer-events: none;
+  }
+  .fire-top    { top: 48px;    transform: scaleY(-1); }
+  .fire-bottom { bottom: 40px; }
+
+  @media (max-width: 1000px) {
+    .fire-strip  { height: 20px; }
+    .fire-top    { top: 44px; }
+    .fire-bottom { bottom: 36px; }
+  }
+  @media (max-width: 600px) {
+    .fire-strip  { height: 15px; }
+    .fire-top    { top: 40px; }
+    .fire-bottom { bottom: 32px; }
+  }
 
   .navbar, .footer {
     position: fixed;
@@ -116,6 +142,8 @@
   <div class="links"><span>shows</span><span>merch</span><span>contact</span></div>
 </div>
 <canvas id="c"></canvas>
+<canvas id="fire-top"    class="fire-strip fire-top"></canvas>
+<canvas id="fire-bottom" class="fire-strip fire-bottom"></canvas>
 <div class="footer">
   <div>est. mmxxvi</div>
   <div class="audio-controls">
@@ -663,23 +691,28 @@
   let playing    = false;
   let currentIdx = 0;
   let cycleTimer = null;
-  let fadeTimer  = null;
+  const fadeState = new WeakMap();
 
   function fade(el, from, to, ms, cb) {
-    clearInterval(fadeTimer);
-    const TICK  = 30;
-    const steps = Math.round(ms / TICK);
-    const delta = (to - from) / steps;
-    let n = 0;
-    fadeTimer = setInterval(() => {
-      n++;
-      el.volume = Math.min(1, Math.max(0, from + delta * n));
-      if (n >= steps) {
-        el.volume = to;
-        clearInterval(fadeTimer);
+    const prev = fadeState.get(el);
+    if (prev) prev.cancelled = true;
+    const token = { cancelled: false };
+    fadeState.set(el, token);
+
+    el.volume = Math.min(1, Math.max(0, from));
+    const start = performance.now();
+    function step(now) {
+      if (token.cancelled) return;
+      const t = Math.min(1, (now - start) / ms);
+      el.volume = Math.min(1, Math.max(0, from + (to - from) * t));
+      if (t >= 1) {
+        fadeState.delete(el);
         if (cb) cb();
+      } else {
+        requestAnimationFrame(step);
       }
-    }, TICK);
+    }
+    requestAnimationFrame(step);
   }
 
   function runCycle(idx) {
@@ -700,16 +733,24 @@
 
   function switchTrack(newIdx) {
     clearTimeout(cycleTimer);
-    clearInterval(fadeTimer);
     const cur = tracks[currentIdx];
-    cur.pause();
-    cur.currentTime = 0;
-    cur.volume = 0;
+    const curVol = cur.volume;
+    const wasPlaying = playing;
     if (!playing) {
       playing = true;
       audioToggle.classList.add('on');
     }
-    runCycle(newIdx);
+    if (wasPlaying && curVol > 0) {
+      fade(cur, curVol, 0, FADE_MS, () => {
+        cur.pause();
+        cur.currentTime = 0;
+        runCycle(newIdx);
+      });
+    } else {
+      cur.pause();
+      cur.currentTime = 0;
+      runCycle(newIdx);
+    }
   }
 
   audioToggle.addEventListener('click', () => {
@@ -721,7 +762,8 @@
       audioToggle.textContent = '♪ off';
       audioToggle.classList.remove('on');
       clearTimeout(cycleTimer);
-      fade(tracks[currentIdx], tracks[currentIdx].volume, 0, 1000, () => {
+      const cur = tracks[currentIdx];
+      fade(cur, cur.volume, 0, FADE_MS, () => {
         tracks.forEach(t => { t.pause(); t.currentTime = 0; });
       });
     }
@@ -736,6 +778,80 @@
   });
 
   start();
+})();
+
+// ============================================================
+// PIXELATED FIRE strips (top inverted, bottom upright)
+// ============================================================
+(() => {
+  const palette = [
+    [7,7,15],[15,7,31],[23,7,47],[31,7,63],[39,7,79],[47,7,95],
+    [55,7,111],[63,7,127],[71,15,143],[79,15,159],[87,23,175],[95,23,183],
+    [103,31,191],[111,31,199],[119,39,207],[127,39,207],[135,47,215],[143,47,215],
+    [151,55,215],[159,55,215],[167,63,215],[175,63,215],[183,71,215],
+    [191,79,215],[199,87,215],[207,95,215],[215,103,215],[223,111,223],
+    [231,127,223],[231,143,231],[231,159,231],[239,175,239],[239,191,239],
+    [247,207,247],[247,223,247],[251,239,251],[255,255,255]
+  ];
+
+  function createFire(canvas, BW, BH) {
+    canvas.width  = BW;
+    canvas.height = BH;
+    const ctx = canvas.getContext('2d');
+    const buffer = new Uint8Array(BW * BH);
+    const img = ctx.createImageData(BW, BH);
+
+    for (let x = 0; x < BW; x++) buffer[(BH - 1) * BW + x] = palette.length - 1;
+
+    function spreadFire(src) {
+      const rand  = Math.floor(Math.random() * 3);
+      const dst   = src - BW + (rand - 1);
+      const srcY  = (src / BW) | 0;
+      let decay   = rand & 1;
+      if (srcY < BH / 2) decay += 2;
+      if (dst >= 0 && dst < buffer.length) {
+        const val = buffer[src] - decay;
+        buffer[dst] = val < 0 ? 0 : val;
+      }
+    }
+
+    function update() {
+      for (let x = 0; x < BW; x++) {
+        for (let y = 1; y < BH; y++) spreadFire(y * BW + x);
+      }
+    }
+
+    function render() {
+      for (let i = 0; i < buffer.length; i++) {
+        const c = palette[buffer[i]];
+        const p = i * 4;
+        img.data[p]   = c[0];
+        img.data[p+1] = c[1];
+        img.data[p+2] = c[2];
+        img.data[p+3] = 255;
+      }
+      ctx.putImageData(img, 0, 0);
+    }
+
+    setInterval(() => {
+      for (let x = 0; x < BW; x++) {
+        buffer[(BH - 1) * BW + x] = palette.length - 1 - Math.floor(Math.random() * 2);
+      }
+    }, 40);
+
+    return { update, render };
+  }
+
+  const fires = [
+    createFire(document.getElementById('fire-top'),    220, 50),
+    createFire(document.getElementById('fire-bottom'), 220, 50),
+  ];
+
+  function loop() {
+    for (const f of fires) { f.update(); f.render(); }
+    requestAnimationFrame(loop);
+  }
+  loop();
 })();
 </script>
 </body>
