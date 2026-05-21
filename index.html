@@ -161,7 +161,8 @@
   let CROSS_LEVELS;
 
   function applyTierConfig(tier) {
-    LOGO = LOGOS[tier];
+    // Always use the high-detail large logo so chars render finer at every breakpoint.
+    LOGO = LOGOS.large;
     LOGO_ROWS = LOGO.length;
     LOGO_COLS = LOGO[0].length;
 
@@ -232,7 +233,7 @@
     const availH = window.innerHeight - NAVBAR_PX - FOOTER_PX;
     const availW = window.innerWidth;
 
-    const vfill = activeTier === 'small' ? 0.55 : (activeTier === 'medium' ? 0.78 : 0.88);
+    const vfill = activeTier === 'small' ? 0.62 : (activeTier === 'medium' ? 0.65 : 0.88);
     cellH = (availH * vfill) / LOGO_ROWS;
     cellW = cellH / 1.8;
 
