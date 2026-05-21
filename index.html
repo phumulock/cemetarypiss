@@ -133,7 +133,7 @@
   <source src="01 - Intro.mp3" type="audio/mpeg" />
 </audio>
 <audio id="bg-audio-2" loop preload="auto">
-  <source src="02 - Spermanaut.mp3" type="audio/mpeg" />
+  <source src="04 - Terrorvoid.mp3" type="audio/mpeg" />
 </audio>
 <script>
 (() => {
@@ -651,14 +651,14 @@
     document.getElementById('bg-audio'),
     document.getElementById('bg-audio-2'),
   ];
-  const trackNames = ['intro', 'spermanaut'];
+  const trackNames = ['intro', 'terrorvoid'];
   const audioToggle = document.getElementById('audio-toggle');
   const prevBtn = document.getElementById('prev-btn');
   const nextBtn = document.getElementById('next-btn');
 
   const MAX_VOL  = 0.15;
   const CYCLE_MS = 30000;
-  const FADE_MS  = 5000;
+  const FADE_MS  = 3000;
 
   let playing    = false;
   let currentIdx = 0;
