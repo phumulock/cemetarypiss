@@ -486,6 +486,7 @@
   let animStart = 0;
   let finished = false;
   let hasAnimated = false;
+  let isResizing = false;
 
   function resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -522,6 +523,13 @@
   }
 
   function loop(now) {
+    if (isResizing) {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+      requestAnimationFrame(loop);
+      return;
+    }
+
     const elapsed = now - animStart;
 
     ctx.fillStyle = '#000';
@@ -617,31 +625,23 @@
     requestAnimationFrame(loop);
   }
 
-  // Resize handling: debounce, then check if tier changed.
-  // If tier changed -> full replay. Otherwise just rebuild grid without replay.
-  let resizeTimer;
-  let lastWidth = window.innerWidth;
-  let lastHeight = window.innerHeight;
+  // Resize handling: go black during the drag, then replay the fly-in once it stops.
+  let resizeEndTimer = null;
   window.addEventListener('resize', () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-      const newTier = pickTier();
-      const sizeChangedSignificantly =
-        Math.abs(window.innerWidth - lastWidth) > 50 ||
-        Math.abs(window.innerHeight - lastHeight) > 50;
-
-      if (newTier !== activeTier || sizeChangedSignificantly) {
-        lastWidth = window.innerWidth;
-        lastHeight = window.innerHeight;
-        startInstant();
-      } else {
-        resize();
-      }
-    }, 200);
+    isResizing = true;
+    resize();
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+    clearTimeout(resizeEndTimer);
+    resizeEndTimer = setTimeout(() => {
+      isResizing = false;
+      hasAnimated = false;
+      start();
+    }, 250);
   });
   // Also handle orientation changes explicitly (mobile)
   window.addEventListener('orientationchange', () => {
-    setTimeout(startInstant, 300);
+    setTimeout(() => { hasAnimated = false; start(); }, 300);
   });
 
   // ============================================================
