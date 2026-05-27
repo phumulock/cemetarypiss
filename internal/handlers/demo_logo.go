@@ -70,6 +70,9 @@ func renderLogoFrame(t float64) string {
 	b.Grow((logoCols*3 + 1) * logoRows)
 	n := float64(len(logoPalette) - 1)
 	for y := 0; y < logoRows; y++ {
+		if y > 0 {
+			b.WriteByte('\n')
+		}
 		for x := 0; x < logoCols; x++ {
 			v := math.Sin(float64(x)*0.18+float64(y)*0.12+t*2.0) +
 				math.Sin(float64(x)*0.07-float64(y)*0.21+t*1.3)
@@ -81,7 +84,6 @@ func renderLogoFrame(t float64) string {
 			}
 			b.WriteRune(logoPalette[idx])
 		}
-		b.WriteByte('\n')
 	}
 	return b.String()
 }

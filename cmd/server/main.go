@@ -15,10 +15,14 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	r.Get("/", handlers.Home)
+	r.Get("/", handlers.DemoCMLogoPage)
+	r.Get("/classic", handlers.Home) // previous animated/audio landing page
 	r.Get("/demo", handlers.DemoPage)
 	r.Get("/demo/logo", handlers.DemoLogoPage)
 	r.Get("/demo/logo/updates", handlers.DemoLogoUpdates)
+	r.Get("/demo/cmlogo", handlers.DemoCMLogoPage)
+	r.Get("/demo/cmlogo/updates", handlers.DemoCMLogoUpdates)
+	r.Get("/demo/cmlogo/fire", handlers.DemoCMFire)
 
 	r.Post("/demo/bump", handlers.DemoBump)
 	r.Post("/demo/time", handlers.DemoTime)

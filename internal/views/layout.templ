@@ -19,6 +19,8 @@ templ Layout(title string) {
   }
   canvas#c { display: block; position: absolute; top: 0; left: 0; }
 
+  :root { --navbar-h: 48px; --footer-h: 40px; }
+
   .fire-strip {
     position: fixed;
     left: 0;
@@ -31,18 +33,14 @@ templ Layout(title string) {
     display: block;
     pointer-events: none;
   }
-  .fire-top    { top: 48px;    transform: scaleY(-1); }
-  .fire-bottom { bottom: 40px; }
+  .fire-top    { top: var(--navbar-h);    transform: scaleY(-1); }
+  .fire-bottom { bottom: var(--footer-h); }
 
   @media (max-width: 1000px) {
     .fire-strip  { height: 20px; }
-    .fire-top    { top: 44px; }
-    .fire-bottom { bottom: 36px; }
   }
   @media (max-width: 600px) {
     .fire-strip  { height: 15px; }
-    .fire-top    { top: 40px; }
-    .fire-bottom { bottom: 32px; }
   }
 
   .navbar, .footer {
@@ -62,13 +60,13 @@ templ Layout(title string) {
   }
   .navbar {
     top: 0;
-    height: 48px;
+    height: var(--navbar-h);
     justify-content: space-between;
     border-bottom: 1px solid rgba(120, 30, 30, 0.3);
   }
   .footer {
     bottom: 0;
-    height: 40px;
+    height: var(--footer-h);
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     border-top: 1px solid rgba(120, 30, 30, 0.3);
@@ -81,22 +79,22 @@ templ Layout(title string) {
 
   /* tablet / medium */
   @media (max-width: 1000px) {
-    .navbar { height: 44px; padding: 0 14px; font-size: 10px; }
+    :root { --navbar-h: 44px; --footer-h: 36px; }
+    .navbar { padding: 0 14px; font-size: 10px; }
     .navbar .links { gap: 14px; }
-    .footer { height: 36px; padding: 0 14px; font-size: 9px; }
+    .footer { padding: 0 14px; font-size: 9px; }
   }
 
   /* phone / small */
   @media (max-width: 600px) {
+    :root { --navbar-h: 40px; --footer-h: 32px; }
     .navbar {
-      height: 40px;
       padding: 0 12px;
       font-size: 9px;
       letter-spacing: 0.18em;
     }
     .navbar .links { gap: 10px; }
     .footer {
-      height: 32px;
       padding: 0 12px;
       font-size: 8px;
       letter-spacing: 0.18em;
@@ -137,6 +135,64 @@ templ Layout(title string) {
     line-height: 1;
   }
   .audio-nav:hover { background: #1a0000; color: #c00; }
+
+  /* /demo/logo — fill the middle band between navbar and footer */
+  .logo-stage {
+    position: fixed;
+    top: var(--navbar-h);
+    bottom: var(--footer-h);
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .logo-slider {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 18px;
+    background: #050505;
+    border-bottom: 1px solid rgba(120, 30, 30, 0.3);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #886655;
+  }
+  .logo-slider input { flex: 1; accent-color: #7a0000; }
+  .logo-box {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .logo-box #logo {
+    margin: 0;
+    padding: 0;
+    color: #f0e8e0;
+    font-family: 'Courier New', ui-monospace, monospace;
+    line-height: 1;
+    white-space: pre;
+  }
+  /* Streamed ASCII fire strips framing the logo.
+     fireW=600 cols => width spans via 100vw/(600*0.6)=100vw/360.
+     clamp() bounds the strip height (16 rows * font) to ~44-88px so it
+     isn't huge on wide screens or a sliver on small ones. */
+  .fire-ascii {
+    flex: 0 0 auto;
+    margin: 0;
+    width: 100%;
+    overflow: hidden;
+    color: #b5482a;
+    font-family: 'Courier New', ui-monospace, monospace;
+    line-height: 1;
+    white-space: pre;
+    font-size: clamp(2.75px, 100vw / 360, 5.5px);
+    pointer-events: none;
+    user-select: none;
+  }
 			</style>
 			<script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.1/bundles/datastar.js"></script>
 			<script type="module" src="/static/datastar-inspector.js"></script>

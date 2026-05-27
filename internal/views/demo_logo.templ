@@ -7,12 +7,11 @@ templ DemoLogo() {
 			<div class="links"><span>shows</span><span>merch</span><span>contact</span></div>
 		</div>
 		<div
+			class="logo-stage"
 			data-signals="{_contents: '', _percentage: 0}"
 			data-init="@get('/demo/logo/updates')"
 		>
-			<label
-				style="position: fixed; top: 48px; left: 0; right: 0; z-index: 6; display: flex; align-items: center; gap: 12px; padding: 6px 18px; background: #050505; border-bottom: 1px solid rgba(120, 30, 30, 0.3); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: #886655;"
-			>
+			<label class="logo-slider">
 				<span data-text="`loop: ${$_percentage.toFixed(2)}%`"></span>
 				<input
 					type="range"
@@ -21,19 +20,17 @@ templ DemoLogo() {
 					step="0.01"
 					disabled
 					data-attr:value="$_percentage"
-					style="flex: 1; accent-color: #7a0000;"
 				/>
 			</label>
-			<pre
-				id="logo"
-				data-text="$_contents"
-				style="position: absolute; top: 78px; left: 0; right: 0; bottom: 40px; margin: 0; padding: 12px; color: #f0e8e0; font-family: 'Courier New', ui-monospace, monospace; font-size: 14px; line-height: 1; overflow: hidden; white-space: pre;"
-			></pre>
+			<div id="logo-box" class="logo-box" data-cols="80" data-rows="28">
+				<pre id="logo" data-text="$_contents"></pre>
+			</div>
 		</div>
 		<div class="footer">
 			<div>est. mmxxvi</div>
 			<div>logo stream demo</div>
 			<div>baltimore, md</div>
 		</div>
+		<script src="/static/logo-fit.js"></script>
 	}
 }
