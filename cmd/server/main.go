@@ -17,6 +17,8 @@ func main() {
 
 	r.Get("/", handlers.Home)
 	r.Get("/demo", handlers.DemoPage)
+	r.Get("/demo/logo", handlers.DemoLogoPage)
+	r.Get("/demo/logo/updates", handlers.DemoLogoUpdates)
 
 	r.Post("/demo/bump", handlers.DemoBump)
 	r.Post("/demo/time", handlers.DemoTime)

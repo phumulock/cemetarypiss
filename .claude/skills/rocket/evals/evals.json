@@ -1,0 +1,26 @@
+{
+  "skill_name": "rocket",
+  "evals": [
+    {
+      "id": 1,
+      "name": "bounded-counter-component",
+      "prompt": "Make me a Rocket web component called <pull-counter> for our project. It shows a counter with + and - buttons next to a number. It should accept a `start` attribute (defaulting to 0) and a `step` attribute (defaulting to 1, has to be a positive integer — clamp it). The count should never go below zero. Important: each instance on the page needs its own independent count, even if there are multiple <pull-counter> elements. Write it as a single JS file I can drop into our page.",
+      "expected_output": "A complete .js file calling rocket('pull-counter', {...}) with: codec-typed `start` and `step` props (number with `.min`/positive enforcement), a $$count instance signal initialized from props.start, observeProps re-syncing on start changes, increment/decrement handlers that respect step and clamp at 0. Uses light DOM or no explicit mode. No React/Lit/Stencil patterns.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "async-user-card",
+      "prompt": "I need a Rocket web component <user-card user-id=\"42\"> that on mount fetches /api/users/{user-id}.json from our own backend and renders the user's name and email. Show a 'Loading…' state while the request is in flight, and a friendly error message if it fails. Crucially, if the element gets removed from the page before the response arrives, the in-flight fetch should be aborted (or at least the result ignored) — don't leak state.",
+      "expected_output": "A rocket('user-card', {...}) definition with: a number prop for user-id (mapping the kebab-case attribute), setup() that kicks off fetch('/api/users/' + props.userId + '.json') and calls render({}, data) or render({}, null, err) on completion, a cleanup() handler that cancels (AbortController.abort() or a cancelled flag), and a render function that branches on the tail args to show loading / error / data states.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "tag-input-with-chips",
+      "prompt": "Build a Rocket component <tag-input> that takes an `initial` attribute holding a JSON array of strings (default empty array) and an optional `placeholder` attribute (default 'Add tag…'). It renders the current tags as chips with an × button on each to remove that tag, plus a text input — when the user presses Enter, the typed value gets added to the list (trimmed, ignore empty strings, ignore duplicates). Also expose the current tag list so other JS on the page can read it via a `.tags` property on the element (e.g. `document.querySelector('tag-input').tags`).",
+      "expected_output": "A rocket('tag-input', {...}) using: `array(string.trim)` or similar for the `initial` prop with `.default([])`, a $$tags signal, an action (e.g. @addTag()) wired to data-on:keydown.enter or similar, a data-for loop over $$tags to render chips, a remove handler that splices/filters, and defineHostProp('tags', { get: () => $$tags }) to expose tag list to outside code.",
+      "files": []
+    }
+  ]
+}

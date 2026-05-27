@@ -1,0 +1,21 @@
+<!-- Existing htmx code we want to convert to Datastar -->
+<div id="likes-container">
+  <button hx-post="/posts/42/like"
+          hx-target="#likes-container"
+          hx-swap="outerHTML"
+          hx-indicator="#spinner">
+    Like
+    <img id="spinner" class="htmx-indicator" src="/spinner.gif" />
+  </button>
+  <span>14 likes</span>
+</div>
+
+<!-- And a search box -->
+<input type="text"
+       name="q"
+       hx-get="/search"
+       hx-trigger="keyup changed delay:300ms"
+       hx-target="#results"
+       hx-indicator="#searching" />
+<div id="searching" class="htmx-indicator">Searching…</div>
+<ul id="results"></ul>
