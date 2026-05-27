@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	_ "embed"
 	"math/rand"
 	"net/http"
 	"strings"
@@ -11,93 +10,69 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-//go:embed cmlogo.txt
-var cmlogoRaw string
-
+// Lightning grid is independent of the logo: it fills the entire band between
+// navbar and footer (CSS scales the pre to the band rectangle), and bolts can
+// strike anywhere across the width. The logo sits on top as a separate pre.
 const (
-	cmFPS      = 20
-	cmSideCols = 14 // width of each lightning gutter
-	cmGapCols  = 4  // blank columns between a gutter and the logo
-	cmMaxBolts = 3  // concurrent bolts per side
+	cmFPS       = 20
+	cmLightCols = 720
+	cmLightRows = 180
+	// Density tuned for portrait phones: only ~30% of the cols are on-screen
+	// there (the rest overflows and is clipped by .logo-stage), so a generous
+	// max keeps the visible center busy without flooding widescreen viewers.
+	cmMaxBolts = 18
 )
-
-var (
-	cmLogo      [][]rune
-	cmLogoW     int
-	cmLogoH     int
-	cmColOffset int
-	cmTotalCols int
-	cmTotalRows int
-)
-
-func init() {
-	lines := strings.Split(strings.TrimRight(cmlogoRaw, "\n"), "\n")
-	cmLogoH = len(lines)
-	for _, ln := range lines {
-		if len(ln) > cmLogoW {
-			cmLogoW = len(ln)
-		}
-	}
-	cmLogo = make([][]rune, cmLogoH)
-	for i, ln := range lines {
-		row := []rune(ln)
-		for len(row) < cmLogoW {
-			row = append(row, ' ')
-		}
-		cmLogo[i] = row
-	}
-	cmColOffset = cmSideCols + cmGapCols
-	cmTotalCols = cmSideCols + cmGapCols + cmLogoW + cmGapCols + cmSideCols
-	cmTotalRows = cmLogoH
-}
 
 func DemoCMLogoPage(w http.ResponseWriter, r *http.Request) {
-	views.DemoCMLogo(cmTotalCols, cmTotalRows).Render(r.Context(), w)
+	views.DemoCMLogo().Render(r.Context(), w)
 }
 
-// cmBolt is a jagged lightning streak that is revealed top-to-bottom (so it
-// reads as "shooting down"), then flickers for a few frames before vanishing.
+// cmBolt is a jagged lightning streak revealed top-to-bottom, then flickering
+// for a few frames before vanishing.
 type cmBolt struct {
-	path  []int    // absolute column for each row [0..cmTotalRows)
-	forks []cmFork // optional diagonal branches
-	head  float64  // rows revealed so far
-	speed float64  // rows revealed per frame
-	hold  int      // frames to flicker after fully revealed
+	path  []int
+	forks []cmFork
+	head  float64
+	speed float64
+	hold  int
 }
 
 type cmFork struct {
 	startRow int
-	cols     []int // columns for rows startRow+1, startRow+2, ...
+	cols     []int
 }
 
-func newBolt(rng *rand.Rand, lo, hi int) *cmBolt {
-	x := lo + rng.Intn(hi-lo)
-	path := make([]int, cmTotalRows)
+func newBolt(rng *rand.Rand) *cmBolt {
+	x := rng.Intn(cmLightCols)
+	path := make([]int, cmLightRows)
 	path[0] = x
-	for r := 1; r < cmTotalRows; r++ {
+	for r := 1; r < cmLightRows; r++ {
 		switch rng.Intn(4) { // bias toward vertical (2 of 4 keep column)
 		case 0:
 			x--
 		case 1:
 			x++
 		}
-		if x < lo {
-			x = lo
-		} else if x >= hi {
-			x = hi - 1
+		if x < 0 {
+			x = 0
+		} else if x >= cmLightCols {
+			x = cmLightCols - 1
 		}
 		path[r] = x
 	}
 
 	b := &cmBolt{
-		path:  path,
-		speed: float64(cmTotalRows) / float64(6+rng.Intn(6)), // full reveal in 6-11 frames
-		hold:  3 + rng.Intn(5),
+		path: path,
+		// Fast reveal + long held-flicker so each bolt spends most of its life
+		// drawn full-height. Without this the population is dominated by
+		// half-revealed bolts and lightning visually bunches at the top.
+		speed: float64(cmLightRows) / float64(3+rng.Intn(4)), // full reveal in 3-6 frames
+		hold:  8 + rng.Intn(10),                              // flicker for 8-17 frames
 	}
 
-	if cmTotalRows > 10 && rng.Intn(2) == 0 { // sometimes branch
-		start := 4 + rng.Intn(cmTotalRows-8)
-		n := 3 + rng.Intn(5)
+	if cmLightRows > 10 && rng.Intn(2) == 0 {
+		start := 4 + rng.Intn(cmLightRows-8)
+		n := 3 + rng.Intn(6)
 		dir := 1
 		if rng.Intn(2) == 0 {
 			dir = -1
@@ -106,7 +81,7 @@ func newBolt(rng *rand.Rand, lo, hi int) *cmBolt {
 		cols := make([]int, 0, n)
 		for i := 0; i < n; i++ {
 			fx += dir
-			if fx < lo || fx >= hi {
+			if fx < 0 || fx >= cmLightCols {
 				break
 			}
 			cols = append(cols, fx)
@@ -131,10 +106,10 @@ func boltChar(dx int) rune {
 
 func (b *cmBolt) draw(grid [][]rune, rng *rand.Rand) {
 	revealed := int(b.head)
-	if revealed > cmTotalRows {
-		revealed = cmTotalRows
+	if revealed > cmLightRows {
+		revealed = cmLightRows
 	}
-	fully := revealed >= cmTotalRows
+	fully := revealed >= cmLightRows
 	if fully && rng.Intn(2) == 0 {
 		return // flicker the held bolt off this frame
 	}
@@ -170,12 +145,12 @@ func (b *cmBolt) draw(grid [][]rune, rng *rand.Rand) {
 func cmAdvance(bolts []*cmBolt) []*cmBolt {
 	out := bolts[:0]
 	for _, b := range bolts {
-		if b.head < float64(cmTotalRows) {
+		if b.head < float64(cmLightRows) {
 			b.head += b.speed
 		} else {
 			b.hold--
 			if b.hold <= 0 {
-				continue // fully faded; drop
+				continue
 			}
 		}
 		out = append(out, b)
@@ -191,43 +166,32 @@ func DemoCMLogoUpdates(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	leftLo, leftHi := 0, cmSideCols
-	rightLo, rightHi := cmTotalCols-cmSideCols, cmTotalCols
-
-	var left, right []*cmBolt
+	var bolts []*cmBolt
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if len(left) < cmMaxBolts && rng.Float64() < 0.18 {
-				left = append(left, newBolt(rng, leftLo, leftHi))
+			if len(bolts) < cmMaxBolts && rng.Float64() < 0.35 {
+				bolts = append(bolts, newBolt(rng))
 			}
-			if len(right) < cmMaxBolts && rng.Float64() < 0.18 {
-				right = append(right, newBolt(rng, rightLo, rightHi))
-			}
-			left = cmAdvance(left)
-			right = cmAdvance(right)
+			bolts = cmAdvance(bolts)
 
-			grid := make([][]rune, cmTotalRows)
+			grid := make([][]rune, cmLightRows)
 			for i := range grid {
-				row := make([]rune, cmTotalCols)
+				row := make([]rune, cmLightCols)
 				for j := range row {
 					row[j] = ' '
 				}
-				copy(row[cmColOffset:cmColOffset+cmLogoW], cmLogo[i])
 				grid[i] = row
 			}
-			for _, b := range left {
-				b.draw(grid, rng)
-			}
-			for _, b := range right {
+			for _, b := range bolts {
 				b.draw(grid, rng)
 			}
 
 			var sb strings.Builder
-			sb.Grow((cmTotalCols + 1) * cmTotalRows)
+			sb.Grow((cmLightCols + 1) * cmLightRows)
 			for i, row := range grid {
 				if i > 0 {
 					sb.WriteByte('\n')
@@ -235,7 +199,7 @@ func DemoCMLogoUpdates(w http.ResponseWriter, r *http.Request) {
 				sb.WriteString(string(row))
 			}
 
-			if err := sse.MarshalAndPatchSignals(map[string]any{"_contents": sb.String()}); err != nil {
+			if err := sse.MarshalAndPatchSignals(map[string]any{"_lightning": sb.String()}); err != nil {
 				return
 			}
 		}

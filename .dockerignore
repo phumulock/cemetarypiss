@@ -1,0 +1,22 @@
+.git
+.gitignore
+.air.toml
+.vscode
+.idea
+
+bin/
+tmp/
+old/
+docs/
+cmd/genlogo/
+
+# Regenerated inside the build stage
+*_templ.go
+*_templ.txt
+
+Dockerfile
+.dockerignore
+fly.toml
+Taskfile.yml
+README*
+*.md

@@ -77,28 +77,49 @@ templ Layout(title string) {
   .navbar .brand { font-style: italic; letter-spacing: 0.12em; color: #d8c8b8; }
   .navbar .links { display: flex; gap: 18px; }
 
-  /* tablet / medium */
+  /* tablet / medium — chrome grows on smaller viewports so the nav/footer
+     are easier to read and tap, and the logo (fit by height in this range)
+     can fill more of the screen. */
   @media (max-width: 1000px) {
-    :root { --navbar-h: 44px; --footer-h: 36px; }
-    .navbar { padding: 0 14px; font-size: 10px; }
-    .navbar .links { gap: 14px; }
-    .footer { padding: 0 14px; font-size: 9px; }
+    :root { --navbar-h: 56px; --footer-h: 48px; }
+    .navbar { padding: 0 16px; font-size: 13px; }
+    .navbar .links { gap: 16px; }
+    .footer { padding: 0 16px; font-size: 12px; }
+    .audio-toggle { font-size: 12px; padding: 6px 14px; }
+    .audio-nav    { font-size: 12px; padding: 6px 10px; }
   }
 
   /* phone / small */
   @media (max-width: 600px) {
-    :root { --navbar-h: 40px; --footer-h: 32px; }
+    :root { --navbar-h: 64px; --footer-h: 56px; }
     .navbar {
-      padding: 0 12px;
-      font-size: 9px;
-      letter-spacing: 0.18em;
+      padding: 0 14px;
+      font-size: 14px;
+      letter-spacing: 0.22em;
     }
-    .navbar .links { gap: 10px; }
+    .navbar .links { gap: 12px; }
     .footer {
-      padding: 0 12px;
-      font-size: 8px;
-      letter-spacing: 0.18em;
+      padding: 0 14px;
+      font-size: 13px;
+      letter-spacing: 0.22em;
     }
+    .audio-toggle { font-size: 13px; padding: 7px 14px; }
+    .audio-nav    { font-size: 13px; padding: 7px 10px; }
+  }
+
+  /* Landscape phones: vertical space is the constraint. The default fire
+     font (keyed to viewport width) puts each 28-row strip at ~77px, eating
+     ~40% of a 400px-tall viewport before the logo gets any room. Re-key the
+     fire to viewport height and tighten the chrome so the logo gets a usable
+     share of the band. Placed after the max-width breakpoints so it wins
+     when a landscape phone matches both. */
+  @media (orientation: landscape) and (max-height: 500px) {
+    :root { --navbar-h: 40px; --footer-h: 36px; }
+    .navbar { font-size: 11px; padding: 0 12px; }
+    .footer { font-size: 10px; padding: 0 12px; }
+    .audio-toggle { font-size: 10px; padding: 4px 10px; }
+    .audio-nav    { font-size: 10px; padding: 4px 8px; }
+    .fire-ascii { font-size: clamp(1.2px, 100vh / 320, 2.5px); }
   }
 
   .audio-controls {
@@ -145,6 +166,29 @@ templ Layout(title string) {
     right: 0;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+  }
+  /* Lightning fills the entire band as a single pre behind the logo. Font-
+     size is keyed to band height only — 180 rows always span the band edge
+     to edge. On portrait viewports the 720 cols overflow horizontally and
+     get clipped by .logo-stage's overflow:hidden, which is fine: bolts
+     spawn across the full width so the visible center stays active. */
+  #lightning {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+    z-index: 0;
+    font-family: 'Courier New', ui-monospace, monospace;
+    line-height: 1;
+    white-space: pre;
+    color: rgba(190, 140, 240, 0.6);
+    pointer-events: none;
+    user-select: none;
+    text-shadow: 0 0 4px rgba(170, 110, 230, 0.5);
+    font-size: calc((100vh - var(--navbar-h) - var(--footer-h)) / 180);
+    font-size: calc((100dvh - var(--navbar-h) - var(--footer-h)) / 180);
   }
   .logo-slider {
     flex: 0 0 auto;
@@ -167,6 +211,8 @@ templ Layout(title string) {
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    position: relative;
+    z-index: 1;
   }
   .logo-box #logo {
     margin: 0;
@@ -175,27 +221,57 @@ templ Layout(title string) {
     font-family: 'Courier New', ui-monospace, monospace;
     line-height: 1;
     white-space: pre;
+    /* No `will-change: transform`: on iOS Safari it keeps the giant pre on a
+       permanent composited layer, killing subpixel AA on the light text and
+       making the whole logo read as gray/dim on mobile. The burst still
+       composites momentarily during the transform frames, which is fine. */
+    animation: logo-glitch 5s steps(1) infinite;
+  }
+  @keyframes logo-glitch {
+    0%, 92%, 100% { transform: translate(0, 0); }
+    95%           { transform: translate(-1px, 0); }
+    95.5%           { transform: translate(1px, -1px); }
+    96%           { transform: translate(-1px, 1px); }
+    96.5%           { transform: translate(1px, 0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .logo-box #logo { animation: none; }
   }
   /* Streamed ASCII fire strips framing the logo.
-     fireW=600 cols => width spans via 100vw/(600*0.6)=100vw/360.
-     clamp() bounds the strip height (16 rows * font) to ~44-88px so it
-     isn't huge on wide screens or a sliver on small ones. */
+     fireW=1200 cols => width spans via 100vw/(1200*0.6)=100vw/720.
+     clamp's upper cap kicks in at viewport=3960px (>4K); below that the
+     content fills the full viewport. Lower cap keeps glyphs legible. */
   .fire-ascii {
     flex: 0 0 auto;
     margin: 0;
     width: 100%;
     overflow: hidden;
-    color: #b5482a;
+    color: #a8843a;
     font-family: 'Courier New', ui-monospace, monospace;
     line-height: 1;
     white-space: pre;
-    font-size: clamp(2.75px, 100vw / 360, 5.5px);
+    font-size: clamp(2.75px, 100vw / 720, 5.5px);
     pointer-events: none;
     user-select: none;
+    position: relative;
+    z-index: 2;
+  }
+  /* Mask the strip so individual flames dim toward their cool tip instead of
+     ending in a hard-edged character. Opaque ~30% on the hot side (the dense
+     @-row against the navbar/footer), then linear fade to transparent at the
+     logo edge. Tall heat bursts reaching into the faded region appear as soft
+     tongues dissolving into smoke rather than abruptly cut-off glyphs. */
+  #fire-top {
+    -webkit-mask-image: linear-gradient(to bottom, #000 30%, transparent 100%);
+            mask-image: linear-gradient(to bottom, #000 30%, transparent 100%);
+  }
+  #fire-bottom {
+    -webkit-mask-image: linear-gradient(to top, #000 30%, transparent 100%);
+            mask-image: linear-gradient(to top, #000 30%, transparent 100%);
   }
 			</style>
 			<script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.1/bundles/datastar.js"></script>
-			<script type="module" src="/static/datastar-inspector.js"></script>
+			// <script type="module" src="/static/datastar-inspector.js"></script>
 		</head>
 		<body>
 			{ children... }

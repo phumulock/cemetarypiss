@@ -2,7 +2,7 @@ package views
 
 import "strconv"
 
-templ DemoCMLogo(cols, rows int) {
+templ DemoCMLogo() {
 	@Layout("CEMETARY PISS") {
 		<div class="navbar">
 			<div class="brand">{ "//" } cemetary piss</div>
@@ -10,7 +10,7 @@ templ DemoCMLogo(cols, rows int) {
 		</div>
 		<div
 			class="logo-stage"
-			data-signals="{_contents: '', _fireTop: '', _fireBottom: ''}"
+			data-signals="{_lightning: '', _fireTop: '', _fireBottom: ''}"
 			data-init="@get('/demo/cmlogo/updates')"
 		>
 			<pre
@@ -19,8 +19,9 @@ templ DemoCMLogo(cols, rows int) {
 				data-text="$_fireTop"
 				data-init="@get('/demo/cmlogo/fire')"
 			></pre>
-			<div id="logo-box" class="logo-box" data-cols={ strconv.Itoa(cols) } data-rows={ strconv.Itoa(rows) }>
-				<pre id="logo" data-text="$_contents"></pre>
+			<pre id="lightning" data-text="$_lightning"></pre>
+			<div id="logo-box" class="logo-box" data-cols={ strconv.Itoa(CMLogoCols) } data-rows={ strconv.Itoa(CMLogoRows) }>
+				<pre id="logo">{ CMLogoText }</pre>
 			</div>
 			<pre id="fire-bottom" class="fire-ascii" data-text="$_fireBottom"></pre>
 		</div>

@@ -32,7 +32,13 @@
     if (!w || !h || !rowWidthPerPx) return;
     const byWidth = w / rowWidthPerPx; // font-size where the row spans the box width
     const byHeight = h / rows;         // line-height:1 => rows lines == rows * font-size
-    const size = Math.max(1, Math.floor(Math.min(byWidth, byHeight)));
+    // Pure min-fit: the logo always fits inside the band on both axes, with
+    // no horizontal overscan. Earlier versions allowed up to ~1.5× horizontal
+    // overflow (relying on overflow:hidden to crop the sparse outer stippling
+    // cols of cmlogo.txt) to grow the logo on portrait viewports, but on
+    // small screens that visibly clipped the readable letterforms — so this
+    // is the safe floor that guarantees the full glyph row stays on-screen.
+    const size = Math.max(1.2, Math.floor(Math.min(byWidth, byHeight)));
     pre.style.fontSize = size + 'px';
   }
 
