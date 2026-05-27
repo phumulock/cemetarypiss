@@ -1,0 +1,45 @@
+package views
+
+import "strconv"
+
+templ DemoCMLogo(cols, rows int) {
+	@Layout("CEMETARY PISS") {
+		<div class="navbar">
+			<div class="brand">{ "//" } cemetary piss</div>
+			<div class="links"><span>shows</span><span>merch</span><span>contact</span></div>
+		</div>
+		<div
+			class="logo-stage"
+			data-signals="{_contents: '', _fireTop: '', _fireBottom: ''}"
+			data-init="@get('/demo/cmlogo/updates')"
+		>
+			<pre
+				id="fire-top"
+				class="fire-ascii"
+				data-text="$_fireTop"
+				data-init="@get('/demo/cmlogo/fire')"
+			></pre>
+			<div id="logo-box" class="logo-box" data-cols={ strconv.Itoa(cols) } data-rows={ strconv.Itoa(rows) }>
+				<pre id="logo" data-text="$_contents"></pre>
+			</div>
+			<pre id="fire-bottom" class="fire-ascii" data-text="$_fireBottom"></pre>
+		</div>
+		<div class="footer">
+			<div>est. mmxxvi</div>
+			<div class="audio-controls">
+				<button class="audio-nav" id="prev-btn" aria-label="Previous track">«</button>
+				<button class="audio-toggle" id="audio-toggle" aria-label="Toggle audio">♪ off</button>
+				<button class="audio-nav" id="next-btn" aria-label="Next track">»</button>
+			</div>
+			<div>baltimore, md</div>
+		</div>
+		<audio id="bg-audio" loop preload="auto">
+			<source src="/audio/01-intro.mp3" type="audio/mpeg"/>
+		</audio>
+		<audio id="bg-audio-2" loop preload="auto">
+			<source src="/audio/04-terrorvoid.mp3" type="audio/mpeg"/>
+		</audio>
+		<script src="/static/logo-fit.js"></script>
+		<script src="/static/audio.js"></script>
+	}
+}

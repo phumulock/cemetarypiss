@@ -1,0 +1,205 @@
+package views
+
+templ Layout(title string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ title }</title>
+			<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    background: #000;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    font-family: 'Courier New', ui-monospace, monospace;
+    color: #f0e8e0;
+  }
+  canvas#c { display: block; position: absolute; top: 0; left: 0; }
+
+  :root { --navbar-h: 48px; --footer-h: 40px; }
+
+  .fire-strip {
+    position: fixed;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 25px;
+    z-index: 4;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    display: block;
+    pointer-events: none;
+  }
+  .fire-top    { top: var(--navbar-h);    transform: scaleY(-1); }
+  .fire-bottom { bottom: var(--footer-h); }
+
+  @media (max-width: 1000px) {
+    .fire-strip  { height: 20px; }
+  }
+  @media (max-width: 600px) {
+    .fire-strip  { height: 15px; }
+  }
+
+  .navbar, .footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    padding: 0 18px;
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #c8b8a8;
+    pointer-events: none;
+    user-select: none;
+  }
+  .navbar {
+    top: 0;
+    height: var(--navbar-h);
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(120, 30, 30, 0.3);
+  }
+  .footer {
+    bottom: 0;
+    height: var(--footer-h);
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    border-top: 1px solid rgba(120, 30, 30, 0.3);
+    font-size: 10px;
+    color: #886655;
+  }
+  .footer > :last-child { text-align: right; }
+  .navbar .brand { font-style: italic; letter-spacing: 0.12em; color: #d8c8b8; }
+  .navbar .links { display: flex; gap: 18px; }
+
+  /* tablet / medium */
+  @media (max-width: 1000px) {
+    :root { --navbar-h: 44px; --footer-h: 36px; }
+    .navbar { padding: 0 14px; font-size: 10px; }
+    .navbar .links { gap: 14px; }
+    .footer { padding: 0 14px; font-size: 9px; }
+  }
+
+  /* phone / small */
+  @media (max-width: 600px) {
+    :root { --navbar-h: 40px; --footer-h: 32px; }
+    .navbar {
+      padding: 0 12px;
+      font-size: 9px;
+      letter-spacing: 0.18em;
+    }
+    .navbar .links { gap: 10px; }
+    .footer {
+      padding: 0 12px;
+      font-size: 8px;
+      letter-spacing: 0.18em;
+    }
+  }
+
+  .audio-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    pointer-events: auto;
+  }
+  .audio-toggle {
+    background: transparent;
+    border: 1px solid #3a0000;
+    color: #7a0000;
+    padding: 4px 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background 0.2s, color 0.2s;
+  }
+  .audio-toggle:hover { background: #1a0000; color: #c00; }
+  .audio-toggle.on { color: #c00; border-color: #5a0000; }
+  .audio-nav {
+    background: transparent;
+    border: 1px solid #3a0000;
+    color: #7a0000;
+    padding: 4px 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background 0.2s, color 0.2s;
+    line-height: 1;
+  }
+  .audio-nav:hover { background: #1a0000; color: #c00; }
+
+  /* /demo/logo — fill the middle band between navbar and footer */
+  .logo-stage {
+    position: fixed;
+    top: var(--navbar-h);
+    bottom: var(--footer-h);
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .logo-slider {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 18px;
+    background: #050505;
+    border-bottom: 1px solid rgba(120, 30, 30, 0.3);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #886655;
+  }
+  .logo-slider input { flex: 1; accent-color: #7a0000; }
+  .logo-box {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .logo-box #logo {
+    margin: 0;
+    padding: 0;
+    color: #f0e8e0;
+    font-family: 'Courier New', ui-monospace, monospace;
+    line-height: 1;
+    white-space: pre;
+  }
+  /* Streamed ASCII fire strips framing the logo.
+     fireW=600 cols => width spans via 100vw/(600*0.6)=100vw/360.
+     clamp() bounds the strip height (16 rows * font) to ~44-88px so it
+     isn't huge on wide screens or a sliver on small ones. */
+  .fire-ascii {
+    flex: 0 0 auto;
+    margin: 0;
+    width: 100%;
+    overflow: hidden;
+    color: #b5482a;
+    font-family: 'Courier New', ui-monospace, monospace;
+    line-height: 1;
+    white-space: pre;
+    font-size: clamp(2.75px, 100vw / 360, 5.5px);
+    pointer-events: none;
+    user-select: none;
+  }
+			</style>
+			<script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.1/bundles/datastar.js"></script>
+			<script type="module" src="/static/datastar-inspector.js"></script>
+		</head>
+		<body>
+			{ children... }
+			<datastar-inspector></datastar-inspector>
+		</body>
+	</html>
+}

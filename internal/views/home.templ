@@ -1,0 +1,29 @@
+package views
+
+templ Home() {
+	@Layout("CEMETARY PISS") {
+		<div class="navbar">
+			<div class="brand">{ "//" } cemetary piss</div>
+			<div class="links"><span>shows</span><span>merch</span><span>contact</span></div>
+		</div>
+		<canvas id="c"></canvas>
+		<canvas id="fire-top" class="fire-strip fire-top"></canvas>
+		<canvas id="fire-bottom" class="fire-strip fire-bottom"></canvas>
+		<div class="footer">
+			<div>est. mmxxvi</div>
+			<div class="audio-controls">
+				<button class="audio-nav" id="prev-btn" aria-label="Previous track">«</button>
+				<button class="audio-toggle" id="audio-toggle" aria-label="Toggle audio">♪ off</button>
+				<button class="audio-nav" id="next-btn" aria-label="Next track">»</button>
+			</div>
+			<div>baltimore, md</div>
+		</div>
+		<audio id="bg-audio" loop preload="auto">
+			<source src="/audio/01-intro.mp3" type="audio/mpeg"/>
+		</audio>
+		<audio id="bg-audio-2" loop preload="auto">
+			<source src="/audio/04-terrorvoid.mp3" type="audio/mpeg"/>
+		</audio>
+		<script src="/static/fire.js"></script>
+	}
+}

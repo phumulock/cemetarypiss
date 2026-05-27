@@ -1,0 +1,49 @@
+version: '3'
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  install:
+    desc: Install dev tooling and tidy Go module
+    cmds:
+      - go install github.com/a-h/templ/cmd/templ@latest
+      - go install github.com/air-verse/air@latest
+      - go install github.com/go-task/task/v3/cmd/task@latest
+      - go mod tidy
+
+  generate:
+    desc: Regenerate templ *_templ.go files
+    cmds:
+      - templ generate ./...
+
+  dev:
+    desc: Run the server with live-reload (templ + Go watched)
+    cmds:
+      - air
+
+  build:
+    desc: Generate templates and build the server binary
+    cmds:
+      - templ generate ./...
+      - go build -o bin/server ./cmd/server
+
+  run:
+    desc: Generate templates and run the server (no watcher)
+    cmds:
+      - templ generate ./...
+      - go run ./cmd/server
+
+  fmt:
+    desc: Format templ + Go sources
+    cmds:
+      - templ fmt .
+      - gofmt -w .
+
+  clean:
+    desc: Remove build artifacts and generated templ files
+    cmds:
+      - rm -rf bin tmp
+      - find . -name "*_templ.go" -delete

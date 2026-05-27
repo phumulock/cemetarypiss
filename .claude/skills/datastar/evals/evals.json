@@ -1,0 +1,92 @@
+{
+  "skill_name": "datastar",
+  "evals": [
+    {
+      "id": 0,
+      "name": "active-search-go",
+      "prompt": "I'm building a small Go web app and I want to add a live search box. As the user types into the input, a debounced request should hit my Go backend at /api/search and update a results list below. Don't use htmx. Give me the HTML for the page (just the relevant input + results region) and a complete Go handler. Assume net/http and a corpus of strings I can match against with a function `findMatches(query string) []string`.",
+      "expected_output": "Frontend uses data-bind for the input, data-on:input with __debounce modifier (double underscore!), and @get('/api/search'). Results region has a matching id for the morph. Go handler uses datastar.ReadSignals into a struct, opens datastar.NewSSE, and calls PatchElements with HTML containing the same id. User input is HTML-escaped in the response.",
+      "assertions": [
+        {"text": "Uses data-bind to wire the input to a signal"},
+        {"text": "Uses __debounce (double underscore) modifier, not .debounce"},
+        {"text": "Uses @get or @post action, not hx-get or fetch()"},
+        {"text": "Results region has a stable id that matches the id in the server's PatchElements HTML"},
+        {"text": "Go handler imports github.com/starfederation/datastar-go/datastar"},
+        {"text": "Go handler calls datastar.ReadSignals to read query from request"},
+        {"text": "Go handler calls datastar.NewSSE to open the stream"},
+        {"text": "Go handler calls PatchElements (not the deprecated MergeFragments)"},
+        {"text": "User-supplied search query is escaped with html.EscapeString or via a templating package, not interpolated raw"},
+        {"text": "Does not use htmx attributes (hx-get, hx-target, etc.)"},
+        {"text": "Does not use Alpine attributes (x-data, x-on, x-bind)"}
+      ],
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "form-validation-with-indicator",
+      "prompt": "I need a sign-up form with two fields (name, email) that does live server-side validation. While a request is in flight the submit button should be disabled and show 'Submitting…'. When the server reports validation errors, show them inline under each field in red. When the form is valid and submitted, swap the form for a 'Welcome!' message. Give me the HTML and a Go handler at POST /signup.",
+      "expected_output": "Form uses data-signals to seed an errors object. data-bind on each input. data-indicator for the submit button's loading state. data-show + data-text on error message spans. data-on:submit__prevent. Go handler validates, sends errors via MarshalAndPatchSignals, or on success uses PatchElements to swap the form region.",
+      "assertions": [
+        {"text": "Uses data-signals to initialize an errors object (or equivalent state)"},
+        {"text": "Uses data-bind on both name and email inputs"},
+        {"text": "Uses data-indicator to track the in-flight request"},
+        {"text": "Uses data-attr:disabled (not hard-coded) to disable the submit button while submitting"},
+        {"text": "Uses data-show and data-text to display field-level errors"},
+        {"text": "Uses data-on:submit with __prevent modifier (double underscore, not Alpine's .prevent)"},
+        {"text": "Go handler calls MarshalAndPatchSignals to send error state back"},
+        {"text": "Go handler uses PatchElements to swap the form for the success message"},
+        {"text": "The success-message element has an id matching the form's id (so the morph swaps them) OR uses an explicit selector + mode"},
+        {"text": "No use of htmx or Alpine attributes"}
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "infinite-scroll-sentinel",
+      "prompt": "Add infinite scroll to a paginated article feed. The initial page is rendered server-side with 10 items already in <div id='feed'>. I want a sentinel element below the list that triggers loading page 2 when it scrolls into view, then page 3, etc. When there are no more pages, the sentinel should disappear. The endpoint is GET /api/feed?page=N and returns nothing for empty pages. Give me the HTML snippet for the sentinel and the Go handler.",
+      "expected_output": "Sentinel uses data-on-intersect with __once modifier. Calls @get with the page number. Go handler appends items into #feed using mode append (ElementsModeAppend), then either replaces the sentinel with a new one for the next page, or removes it via RemoveElement when out of pages.",
+      "assertions": [
+        {"text": "Uses data-on-intersect (the IntersectionObserver attribute)"},
+        {"text": "Uses __once modifier on the sentinel so it doesn't re-fire"},
+        {"text": "Sentinel has a stable id (e.g., #sentinel) for replacement"},
+        {"text": "Go handler appends new items using ElementsModeAppend (or mode append in raw SSE)"},
+        {"text": "Go handler either emits a replacement sentinel pointing at the next page, or removes the sentinel when done"},
+        {"text": "Uses sse.RemoveElement or a remove-mode patch for the end-of-list case"},
+        {"text": "Item content is HTML-escaped"},
+        {"text": "Does not use polling or htmx triggers"}
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "fix-broken-modifier-syntax",
+      "prompt": "I have a Datastar v1 search box that just doesn't work — typing in the input never fires the request. Here's the file. What's wrong and what's the fix? Show me the corrected HTML.",
+      "expected_output": "Identifies that .debounce.300ms uses Alpine-style dot syntax but Datastar uses __debounce.300ms (double underscore for the modifier, dot only for its argument). Provides the corrected HTML.",
+      "assertions": [
+        {"text": "Identifies the modifier syntax as the problem (the dot before 'debounce')"},
+        {"text": "Explains Datastar uses __ (double underscore) for modifiers, dot only for the modifier's argument"},
+        {"text": "Provides corrected HTML using data-on:input__debounce.300ms"},
+        {"text": "Does not invent unrelated issues (like blaming the CDN URL or data-bind)"},
+        {"text": "Mentions the Alpine-vs-Datastar distinction explicitly (since the symptom is silent failure)"}
+      ],
+      "files": ["evals/files/broken-snippet.html"]
+    },
+    {
+      "id": 4,
+      "name": "htmx-to-datastar-migration",
+      "prompt": "I'm migrating a small project from htmx to Datastar. Here are two snippets from the existing code — a like button and a search box. Convert both to Datastar v1, and explain the key differences in the mental model so I understand what I'm doing. The backend will be Go.",
+      "expected_output": "Both snippets converted: hx-post → data-on:click=\"@post(...)\", hx-target/hx-swap replaced by id-matching outer morph (or explicit selector+mode), hx-trigger keyup delay → data-on:input__debounce, hx-indicator → data-indicator. Explains the SSE response model vs htmx's HTML response, and that Datastar sends all signals on every request.",
+      "assertions": [
+        {"text": "Like button: replaces hx-post with data-on:click=\"@post('/posts/42/like')\""},
+        {"text": "Like button: drops hx-target / hx-swap in favor of id-based morph (or an explicit Datastar selector+mode)"},
+        {"text": "Search box: replaces hx-get with @get and uses data-bind for the input"},
+        {"text": "Search box: replaces hx-trigger keyup delay:300ms with data-on:input__debounce.300ms"},
+        {"text": "Replaces hx-indicator with data-indicator pattern"},
+        {"text": "Explains the response model difference (htmx returns HTML fragments; Datastar returns an SSE stream of patch events)"},
+        {"text": "Mentions that Datastar sends all client signals with every action call (different from htmx's per-attribute config)"},
+        {"text": "Does not leave any hx-* attributes in the converted output"}
+      ],
+      "files": ["evals/files/htmx-snippet.html"]
+    }
+  ]
+}

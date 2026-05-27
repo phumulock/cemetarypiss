@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How the logo works</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    background: #000;
+    color: #c8b8a8;
+    font-family: 'Courier New', ui-monospace, monospace;
+    line-height: 1.65;
+    font-size: 15px;
+  }
+  main {
+    max-width: 760px;
+    margin: 60px auto 120px;
+    padding: 0 24px;
+  }
+  h1 {
+    color: #d8c8b8;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-style: italic;
+    font-weight: normal;
+    font-size: 22px;
+    margin-bottom: 8px;
+  }
+  h1 + p { color: #886655; font-size: 12px; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 40px; }
+  h2 {
+    color: #c8b8a8;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: normal;
+    font-size: 14px;
+    margin: 48px 0 16px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(120, 30, 30, 0.3);
+  }
+  h2 .num { color: #7a0000; margin-right: 12px; }
+  p, li { margin-bottom: 12px; color: #c8b8a8; }
+  ul, ol { padding-left: 22px; margin-bottom: 16px; }
+  code {
+    color: #f0e8e0;
+    background: #1a0000;
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-size: 13px;
+  }
+  pre {
+    background: #0a0a0a;
+    border: 1px solid rgba(120, 30, 30, 0.4);
+    border-left: 3px solid #7a0000;
+    padding: 14px 18px;
+    margin: 16px 0;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #d8c8b8;
+  }
+  pre code { background: transparent; padding: 0; color: inherit; font-size: inherit; }
+  .filename {
+    display: block;
+    color: #886655;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-top: 24px;
+    margin-bottom: -8px;
+  }
+  .gotcha {
+    background: #0a0000;
+    border: 1px solid #5a0000;
+    border-left: 3px solid #c00;
+    padding: 16px 20px;
+    margin: 20px 0;
+  }
+  .gotcha strong { color: #c00; letter-spacing: 0.1em; text-transform: uppercase; font-size: 12px; }
+  .kv { color: #886655; }
+  .kv b { color: #d8c8b8; font-weight: normal; }
+  .arrow { color: #7a0000; }
+  .ascii {
+    color: #886655;
+    font-size: 11px;
+    line-height: 1.2;
+    white-space: pre;
+    padding: 12px 0;
+  }
+  a { color: #c00; text-decoration: none; border-bottom: 1px dotted #5a0000; }
+  a:hover { color: #f00; }
+  .comment { color: #5a4438; font-style: italic; }
+  .sig { color: #d8c8b8; }
+  .str { color: #b88860; }
+  .kw { color: #886655; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>// the logo</h1>
+<p>how the cemetery assembles itself out of the dark</p>
+
+<p>
+This is the landing-page logo &mdash; the ASCII skull that flies in piece by piece on a
+black field, with pixel-fire licking the top and bottom edges and two tracks of doom
+ambience underneath. It is <strong>entirely client-side</strong>: no server, no SSE, no
+Datastar. (That other thing, the server-streamed <code>/demo/logo</code> page, is a
+separate experiment &mdash; see <a href="logo-stream-explained.html">logo-stream-explained.html</a>.)
+</p>
+
+<p>
+All of it lives in one file of vanilla JavaScript, no dependencies. The markup is just a
+stack of <code>&lt;canvas&gt;</code> elements plus a navbar/footer.
+</p>
+
+<span class="filename">static/fire.js &mdash; mirrored inline in index.html</span>
+<pre><code><span class="kw">&lt;canvas</span> <span class="sig">id</span>=<span class="str">"c"</span><span class="kw">&gt;&lt;/canvas&gt;</span>                <span class="comment">// the big ASCII logo</span>
+<span class="kw">&lt;canvas</span> <span class="sig">id</span>=<span class="str">"fire-top"</span>    ...<span class="kw">&gt;&lt;/canvas&gt;</span>   <span class="comment">// doom-fire strip, flipped</span>
+<span class="kw">&lt;canvas</span> <span class="sig">id</span>=<span class="str">"fire-bottom"</span> ...<span class="kw">&gt;&lt;/canvas&gt;</span>   <span class="comment">// doom-fire strip, upright</span></code></pre>
+
+<p>The script splits into three independent self-invoking blocks (IIFEs):</p>
+
+<pre><span class="ascii">    block 1   the ASCII logo fly-in        (canvas #c)
+    block 2   two pixelated fire strips    (canvas #fire-top / #fire-bottom)
+    block 3   wired into block 1's tail    audio: cross-fading background tracks</span></pre>
+
+
+<h2><span class="num">01</span> the baked logo bitmaps</h2>
+
+<p>
+The skull isn't drawn with paths. It's a pre-rendered <strong>ASCII bitmap</strong> &mdash; an
+array of equal-length strings where each character is one cell of art, drawn from the
+density ramp <code>@ % # * + = - : . (space)</code>. <code>@</code> is the darkest/solid
+fill; a space is empty.
+</p>
+
+<p>
+There are three of them &mdash; <code>LOGOS.small</code>, <code>.medium</code>,
+<code>.large</code> &mdash; baked at different resolutions. Each is just rows of text:
+</p>
+
+<pre><code><span class="kw">const</span> LOGOS = {
+  large:  [<span class="str">"@@@@@@@@@@...##**@@@%@@@@..."</span>, <span class="str">"@@@@@@...#+-=*+==+-=*%%@..."</span>, ...],  <span class="comment">// ~49 rows</span>
+  medium: [...],
+  small:  [...]
+};</code></pre>
+
+<div class="gotcha">
+<strong>only the large bitmap is ever used</strong>
+<p style="margin: 12px 0 0;">
+Despite three baked sizes, <code>applyTierConfig()</code> hard-assigns
+<code>LOGO = LOGOS.large</code> at every breakpoint &mdash; <em>&ldquo;always use the
+high-detail large logo so chars render finer at every breakpoint.&rdquo;</em> The smaller
+bitmaps are kept around but not rendered. Responsiveness comes from <strong>cell size</strong>,
+not from swapping the art.
+</p>
+</div>
+
+
+<h2><span class="num">02</span> responsive tiers</h2>
+
+<p>
+<code>pickTier()</code> reads <code>window.innerWidth</code> and returns one of three labels:
+</p>
+
+<pre><code><span class="kw">function</span> <span class="sig">pickTier</span>() {
+  <span class="kw">const</span> w = window.innerWidth;
+  <span class="kw">if</span> (w &lt; 600)  <span class="kw">return</span> <span class="str">'small'</span>;
+  <span class="kw">if</span> (w &lt; 1000) <span class="kw">return</span> <span class="str">'medium'</span>;
+  <span class="kw">return</span> <span class="str">'large'</span>;
+}</code></pre>
+
+<p>
+The tier doesn't pick a bitmap &mdash; it tunes layout numbers: navbar/footer heights,
+how much vertical space the logo should fill (<code>vfill</code> = 0.62 / 0.65 / 0.88), the
+corner-rounding radius, and the parameters of the cross system below.
+</p>
+
+
+<h2><span class="num">03</span> building the grid</h2>
+
+<p>
+<code>buildGrid()</code> turns the viewport into a fixed grid of monospace cells and decides
+what character lives in each. First it sizes a cell so the logo fits:
+</p>
+
+<pre><code><span class="kw">const</span> availH = window.innerHeight - NAVBAR_PX - FOOTER_PX;
+cellH = (availH * vfill) / LOGO_ROWS;   <span class="comment">// height to fill the target fraction</span>
+cellW = cellH / 1.8;                    <span class="comment">// monospace glyphs are ~1.8&times; taller than wide</span>
+
+<span class="comment">// if that overflows horizontally, shrink to fit the width instead</span>
+<span class="kw">if</span> (LOGO_COLS * cellW &gt; availW * 0.94) {
+  cellW = (availW * 0.94) / LOGO_COLS;
+  cellH = cellW * 1.8;
+}</code></pre>
+
+<p>
+From the cell size it computes <code>totalCols</code> &times; <code>totalRows</code> covering
+the viewport, centers that grid vertically (<code>gridYOffset</code>), and positions the
+logo bitmap so it's horizontally centered and parked at the right height
+(<code>logoColOffset</code>, <code>logoRowOffset</code>). Every cell is then classified into
+one of a few kinds:
+</p>
+
+<ul>
+  <li><b>logo glyph</b> &mdash; the cell falls inside the bitmap rectangle: take the character straight from <code>LOGO[lr][lc]</code>.</li>
+  <li><b>space</b> &mdash; a blank inside the bitmap.</li>
+  <li><b>deep fill</b> &mdash; a logo <code>@</code> whose eight neighbours are <em>also</em> <code>@</code> (i.e. solid interior, not an edge). Flagged for the shimmer effect later.</li>
+  <li><b>outer filler</b> &mdash; everything in the black field outside the bitmap, given a pseudo-random glyph from <code>@%#&amp;</code>.</li>
+  <li><b>cross texture</b> &mdash; a cell carved out by the cross system (next section).</li>
+</ul>
+
+<p>
+The glyphs are deterministic, not <code>Math.random()</code> &mdash; <code>fillerChar(seed)</code>
+and <code>textureChar(tier, seed)</code> hash a per-cell seed through a sine so the same cell
+always gets the same character across rebuilds.
+</p>
+
+
+<h2><span class="num">04</span> the hanging crosses</h2>
+
+<p>
+There's an elaborate sub-system that places upside-down crosses cascading <em>below</em> the
+logo. <code>CROSSES</code> is a bank of cross shapes (each a 2-D array of 0/1 at increasing
+sizes). <code>CROSS_LEVELS</code> describes rows of them &mdash; size range, vertical offset,
+count. <code>placeCrossesInRegion()</code> walks left-to-right packing crosses with random
+gaps, applies a &ldquo;smile&rdquo; curve (edges lifted on desktop, center dropped on mobile),
+randomly skips some for sparsity, and flips them vertically so they hang point-up:
+</p>
+
+<pre><code><span class="kw">const</span> hangRow = logoRowOffset + LOGO_ROWS + 1;
+<span class="sig">placeCrossesInRegion</span>(1, totalCols - 1, { flip: <span class="kw">true</span>, anchorRow: hangRow });</code></pre>
+
+<p>
+Each placed cross's <code>1</code> cells are &ldquo;carved&rdquo; into a <code>Map</code> keyed
+by grid position, tagged with a tier (0&ndash;3) that selects a texture density. Overlapping
+crosses keep the lower (denser) tier.
+</p>
+
+<div class="gotcha">
+<strong>computed, but not currently painted</strong>
+<p style="margin: 12px 0 0;">
+The cross grid and the surrounding <code>@</code> field are fully built &mdash; but the render
+loop skips them. The very first lines of the per-frame draw are:
+</p>
+<pre style="margin: 12px 0 0;"><code><span class="kw">if</span> (cell.isSpace) <span class="kw">continue</span>;
+<span class="kw">if</span> (cell.isOuterFiller || cell.isCrossTexture) <span class="kw">continue</span>;</code></pre>
+<p style="margin: 12px 0 0;">
+So spaces, filler, and cross cells never draw. What you actually see on screen is the
+<strong>logo bitmap glyphs alone</strong>, flying in against pure black. The cross/field
+machinery is scaffolding from an earlier, busier composition &mdash; left in place, currently
+dormant. If you want the field back, that's the line to loosen.
+</p>
+</div>
+
+
+<h2><span class="num">05</span> rounding the block's corners</h2>
+
+<p>
+The bitmap is a hard rectangle. To soften it, <code>inBlockCornerCut(r, c)</code> tests
+whether a cell sits inside one of the four corner squares but <em>outside</em> the rounding
+arc of radius <code>boxCornerR</code> (8/10/12 by tier). Those corner cells are reclassified
+as outer filler &mdash; and since filler isn't painted, the corners simply read as black.
+The result is a rounded slab of ASCII instead of a sharp box.
+</p>
+
+<pre><code><span class="kw">if</span> (r &lt; boxTop + R &amp;&amp; c &lt; boxLeft + R) {          <span class="comment">// top-left corner zone</span>
+  <span class="kw">const</span> dr = (boxTop + R) - r, dc = (boxLeft + R) - c;
+  <span class="kw">if</span> (dr*dr + dc*dc &gt; R*R) <span class="kw">return</span> <span class="kw">true</span>;          <span class="comment">// outside the arc &rarr; cut it</span>
+}</code></pre>
+
+
+<h2><span class="num">06</span> the fly-in: timing</h2>
+
+<p>
+Once the grid is built, <code>assignTiming()</code> gives every cell a <code>startAt</code>
+time and a random launch <code>angle</code>. The cells are sorted by a key biased toward
+<strong>bottom rows first</strong>, with jitter, then spread evenly across a
+<code>SWEEP_DURATION</code> of 2.2&nbsp;s:
+</p>
+
+<pre><code><span class="kw">const</span> sortKey = -cell.row * 1.5 + cell.col * 0.05 + Math.random() * 8;
+...
+c.startAt = (i / n) * SWEEP_DURATION + Math.random() * 40;</code></pre>
+
+<p>
+So the logo doesn't appear at once &mdash; it sweeps in, roughly from the bottom up, over a
+couple of seconds. Each individual cell, once its turn comes, falls into place over
+<code>FALL_DURATION</code> = 260&nbsp;ms.
+</p>
+
+
+<h2><span class="num">07</span> the render loop</h2>
+
+<p>
+<code>loop(now)</code> runs every animation frame. It clears to black, then for each
+<em>paintable</em> cell (logo glyphs only) computes where it is in its little life cycle:
+</p>
+
+<ol>
+  <li><strong>Off-screen start.</strong> The cell's target is its grid position. Its start point is that target pushed out along its random <code>angle</code> by ~1.2&times; the screen diagonal &mdash; so it begins well off-screen in some direction.</li>
+  <li><strong>Fall in.</strong> Progress <code>fallT</code> runs 0&rarr;1 over 260&nbsp;ms, eased with <code>easeOutCubic</code> so it decelerates into place. Position lerps from start to target.</li>
+  <li><strong>Streak.</strong> While in flight it draws a short 3-step trailing streak behind itself in translucent red &mdash; the &ldquo;meteor&rdquo; tail.</li>
+  <li><strong>Flash.</strong> In flight the glyph is hot pink-white (<code>rgba(255,180,180,.95)</code>).</li>
+  <li><strong>Land &amp; cool.</strong> After landing it glows from red toward bone-white over the next 500&nbsp;ms (<code>glow</code> 0&rarr;1).</li>
+</ol>
+
+<p>Once settled, two idle effects keep it alive:</p>
+
+<ul>
+  <li><strong>Shutter flicker</strong> &mdash; deep-fill cells occasionally swap to a different filler glyph, each on its own sine phase/rate so they don't blink in sync. Gives the solid mass a crawling-static texture.</li>
+  <li><strong>Yellow flutter</strong> &mdash; ~30% of deep-fill cells are eligible to randomly flare yellow (<code>rgba(255,220,0,&hellip;)</code>) on a slow noise function, like embers glinting inside the skull.</li>
+</ul>
+
+<p>
+The loop never stops; after everything has landed it just keeps drawing the settled state
+with its flicker and flutter.
+</p>
+
+
+<h2><span class="num">08</span> resize &amp; replay</h2>
+
+<p>
+Resizing changes cell math, so the whole grid is rebuilt. To avoid a janky live reflow, a
+resize blacks the canvas immediately, debounces 250&nbsp;ms, then replays the entire fly-in
+from scratch. Orientation changes do the same. (Internally <code>startInstant()</code> exists
+to rebuild without the animation, by backdating <code>animStart</code> so every cell reads as
+already-landed.)
+</p>
+
+
+<h2><span class="num">09</span> the fire strips</h2>
+
+<p>
+Independent of the logo, two thin canvases run the classic
+<a href="https://fabiensanglard.net/doom_fire_psx/" target="_blank">Doom PSX fire</a>
+algorithm. Each is a small <code>220&times;50</code> pixel buffer:
+</p>
+
+<ul>
+  <li>The bottom row is seeded to the hottest palette index (white).</li>
+  <li><code>spreadFire()</code> propagates each pixel upward into a cell offset by a random &minus;1/0/+1, subtracting a random decay &mdash; doubled in the top half so the flame thins as it rises.</li>
+  <li>A 37-stop palette ramps deep purple &rarr; magenta &rarr; pink &rarr; white, giving it the sickly cemetery glow rather than orange.</li>
+  <li>The seed row is re-randomized every 40&nbsp;ms so the base flickers.</li>
+</ul>
+
+<p>
+<code>#fire-top</code> is the same effect CSS-flipped (<code>transform: scaleY(-1)</code>) so it
+burns downward from under the navbar; <code>#fire-bottom</code> burns up from the footer.
+</p>
+
+
+<h2><span class="num">10</span> the audio</h2>
+
+<p>
+The footer toggle (<code>&#9834; off</code>) drives two <code>&lt;audio&gt;</code> tracks,
+<em>intro</em> and <em>terrorvoid</em>. They auto-cycle: each plays for
+<code>CYCLE_MS</code> = 30&nbsp;s, with a 3&nbsp;s cross-fade between them, capped at a low
+<code>MAX_VOL</code> = 0.15. A small <code>fade()</code> helper ramps volume on
+<code>requestAnimationFrame</code> and cancels any in-flight fade on the same element (via a
+<code>WeakMap</code> token) so overlapping prev/next presses don't fight. Prev/next buttons
+jump tracks with the same cross-fade.
+</p>
+
+<div class="gotcha">
+<strong>autoplay is opt-in by design</strong>
+<p style="margin: 12px 0 0;">
+Nothing plays until you click the toggle &mdash; browsers block autoplay with sound, and
+this respects that. The toggle is the user gesture that unlocks it.
+</p>
+</div>
+
+
+<h2><span class="num">11</span> what actually ends up on screen</h2>
+
+<p>To cut through all the machinery, the live picture is:</p>
+
+<ul>
+  <li>An ASCII skull (the <code>large</code> bitmap, rounded corners) <strong>assembling itself</strong> from the bottom up over ~2&nbsp;s, each glyph streaking in red and cooling to white.</li>
+  <li>The solid interior of the skull <strong>shimmering</strong> &mdash; static crawl plus occasional yellow ember flares.</li>
+  <li><strong>Purple pixel-fire</strong> bleeding in from the top and bottom edges.</li>
+  <li>Optional <strong>doom ambience</strong> once you hit the toggle.</li>
+  <li>Everything <strong>replays</strong> on resize / rotate.</li>
+</ul>
+
+<p>
+The cross field and the surrounding <code>@</code> texture are built but not painted (see
+&sect;04) &mdash; worth knowing if you ever wonder why all that code doesn't seem to show up.
+</p>
+
+
+<h2><span class="num">12</span> where to look</h2>
+
+<pre><span class="ascii">    static/fire.js          the whole thing (also inlined in index.html's &lt;script&gt;)
+    index.html              the canvas stack, navbar/footer, &lt;audio&gt; tags, styles
+
+      block 1  ── the ASCII logo fly-in        (IIFE around canvas #c)
+      block 2  ── the doom-fire strips         (IIFE, #fire-top / #fire-bottom)
+      block 3  ── audio cross-fader            (tail of block 1)
+
+    01 - Intro.mp3 / 04 - Terrorvoid.mp3       the two background tracks</span></pre>
+
+<p style="margin-top: 60px; color: #5a4438; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; text-align: center;">
+&mdash; est. mmxxvi &mdash;
+</p>
+
+</main>
+</body>
+</html>

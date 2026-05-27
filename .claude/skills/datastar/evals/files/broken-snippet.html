@@ -1,0 +1,10 @@
+<!-- This page is loading Datastar v1, but the search box doesn't work.
+     The request never fires when I type. What's wrong and how do I fix it? -->
+<script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.1/bundles/datastar.js"></script>
+
+<input type="text"
+       data-bind:query
+       data-on:input.debounce.300ms="@get('/search')"
+       placeholder="Search…" />
+
+<ul id="results"></ul>

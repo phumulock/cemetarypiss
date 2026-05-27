@@ -1,0 +1,36 @@
+package views
+
+templ DemoLogo() {
+	@Layout("Logo stream — CEMETARY PISS") {
+		<div class="navbar">
+			<div class="brand">{ "//" } cemetary piss / logo stream</div>
+			<div class="links"><span>shows</span><span>merch</span><span>contact</span></div>
+		</div>
+		<div
+			class="logo-stage"
+			data-signals="{_contents: '', _percentage: 0}"
+			data-init="@get('/demo/logo/updates')"
+		>
+			<label class="logo-slider">
+				<span data-text="`loop: ${$_percentage.toFixed(2)}%`"></span>
+				<input
+					type="range"
+					min="0"
+					max="100"
+					step="0.01"
+					disabled
+					data-attr:value="$_percentage"
+				/>
+			</label>
+			<div id="logo-box" class="logo-box" data-cols="80" data-rows="28">
+				<pre id="logo" data-text="$_contents"></pre>
+			</div>
+		</div>
+		<div class="footer">
+			<div>est. mmxxvi</div>
+			<div>logo stream demo</div>
+			<div>baltimore, md</div>
+		</div>
+		<script src="/static/logo-fit.js"></script>
+	}
+}

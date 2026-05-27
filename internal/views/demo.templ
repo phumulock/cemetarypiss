@@ -1,0 +1,40 @@
+package views
+
+templ Demo() {
+	@Layout("Datastar smoke test — CEMETARY PISS") {
+		<main style="max-width: 720px; margin: 80px auto 60px; padding: 0 20px; color: #f0e8e0; font-family: 'Courier New', ui-monospace, monospace;">
+			<h1 style="letter-spacing: 0.2em; text-transform: uppercase; color: #d8c8b8;">Datastar smoke test</h1>
+			<p style="color: #886655;">Each section exercises one method of the datastar-go SDK. Open the browser devtools network tab to watch the SSE events.</p>
+			<div data-signals="{count: 0}">
+				<section style="margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(120, 30, 30, 0.3);">
+					<h2 style="font-size: 14px; letter-spacing: 0.2em; text-transform: uppercase; color: #c8b8a8;">1. Counter (ReadSignals + MarshalAndPatchSignals)</h2>
+					<p>Count: <span data-text="$count">0</span></p>
+					<button data-on:click="@post('/demo/bump')">Bump</button>
+				</section>
+				<section style="margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(120, 30, 30, 0.3);">
+					<h2 style="font-size: 14px; letter-spacing: 0.2em; text-transform: uppercase; color: #c8b8a8;">2. Server time (PatchElements / outer morph)</h2>
+					<div id="server-time">&mdash;</div>
+					<button data-on:click="@post('/demo/time')">Fetch</button>
+				</section>
+				<section style="margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(120, 30, 30, 0.3);">
+					<h2 style="font-size: 14px; letter-spacing: 0.2em; text-transform: uppercase; color: #c8b8a8;">3. Notes (PatchElements / append mode)</h2>
+					<ul id="notes"></ul>
+					<button data-on:click="@post('/demo/note')">Add note</button>
+				</section>
+				<section id="banner" style="margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(120, 30, 30, 0.3);">
+					<h2 style="font-size: 14px; letter-spacing: 0.2em; text-transform: uppercase; color: #c8b8a8;">4. Dismissable banner (RemoveElement)</h2>
+					<p>This section can be removed from the DOM entirely.</p>
+					<button data-on:click="@post('/demo/dismiss')">Dismiss</button>
+				</section>
+				<section style="margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(120, 30, 30, 0.3);">
+					<h2 style="font-size: 14px; letter-spacing: 0.2em; text-transform: uppercase; color: #c8b8a8;">5. Execute script (ExecuteScript)</h2>
+					<button data-on:click="@post('/demo/greet')">Greet (alert)</button>
+				</section>
+				<section style="margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(120, 30, 30, 0.3);">
+					<h2 style="font-size: 14px; letter-spacing: 0.2em; text-transform: uppercase; color: #c8b8a8;">Signals debug</h2>
+					<pre data-json-signals style="background: #0a0a0a; padding: 10px; border: 1px solid rgba(120, 30, 30, 0.3); color: #c8b8a8;"></pre>
+				</section>
+			</div>
+		</main>
+	}
+}
