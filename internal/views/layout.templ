@@ -76,6 +76,16 @@ templ Layout(title string) {
   .footer > :last-child { text-align: right; }
   .navbar .brand { font-style: italic; letter-spacing: 0.12em; color: #d8c8b8; }
   .navbar .links { display: flex; gap: 18px; }
+  .navbar .links a {
+    color: #c00;
+    text-decoration: none;
+    pointer-events: auto;
+    transition: color 0.2s, text-shadow 0.2s;
+  }
+  .navbar .links a:hover {
+    color: #f04040;
+    text-shadow: 0 0 6px rgba(200, 0, 0, 0.6);
+  }
 
   /* tablet / medium — chrome grows on smaller viewports so the nav/footer
      are easier to read and tap, and the logo (fit by height in this range)
