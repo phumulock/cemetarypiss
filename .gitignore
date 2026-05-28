@@ -13,3 +13,6 @@ tmp/
 # Editor
 .vscode/
 .idea/
+
+# Claude Code local state (worktrees, plans, etc.)
+.claude/

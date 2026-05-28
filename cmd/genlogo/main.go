@@ -1,5 +1,5 @@
 // Converts logo.png into the ASCII grid consumed by handlers/cmlogo.go.
-// Usage: go run ./cmd/genlogo -in logo.png -out internal/handlers/cmlogo.txt -cols 480
+// Usage: go run ./cmd/genlogo -in cmd/genlogo/logo.png -out internal/views/cmlogo.txt -cols 480
 package main
 
 import (
@@ -18,8 +18,8 @@ import (
 var ramp = []rune(" .:-=+*#%@")
 
 func main() {
-	in := flag.String("in", "logo.png", "input PNG (white-on-black logo)")
-	out := flag.String("out", "internal/handlers/cmlogo.txt", "output ASCII grid")
+	in := flag.String("in", "cmd/genlogo/logo.png", "input PNG (white-on-black logo)")
+	out := flag.String("out", "internal/views/cmlogo.txt", "output ASCII grid")
 	cols := flag.Int("cols", 480, "target columns")
 	cellAspect := flag.Float64("cell-aspect", 2.1, "char cell height/width (monospace ~2.0-2.2)")
 	flag.Parse()

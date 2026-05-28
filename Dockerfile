@@ -28,8 +28,6 @@ WORKDIR /app
 
 COPY --from=build /out/server /app/server
 COPY static /app/static
-COPY ["01 - Intro.mp3", "/app/01 - Intro.mp3"]
-COPY ["04 - Terrorvoid.mp3", "/app/04 - Terrorvoid.mp3"]
 
 EXPOSE 8080
 USER nonroot:nonroot
