@@ -25,10 +25,12 @@ const (
 	// Flash kicks when 2+ bolts strike in the same frame (a "burst"). The
 	// signal is the overlay opacity; decay is per-frame at cmFPS so the fade
 	// lasts ~200-300ms — long enough to read as a flash, short enough that it
-	// doesn't wash the scene.
+	// doesn't wash the scene. Cap is set so the peak reads clearly on mobile
+	// screens (which run at lower peak luminance than desktops) without
+	// blowing out the band on desktop.
 	cmBurstChance  = 0.06 // per frame, on top of the normal single-bolt spawn
-	cmFlashImpulse = 0.16 // opacity added per burst
-	cmFlashCap     = 0.22 // hard cap keeps it subtle even on rapid bursts
+	cmFlashImpulse = 0.28 // opacity added per burst
+	cmFlashCap     = 0.45 // hard cap on stacked bursts
 	cmFlashDecay   = 0.74 // multiplier each frame
 )
 
