@@ -91,7 +91,7 @@ templ Layout(title string) {
 
   /* phone / small */
   @media (max-width: 600px) {
-    :root { --navbar-h: 64px; --footer-h: 56px; }
+    :root { --navbar-h: 64px; --footer-h: 80px; }
     .navbar {
       padding: 0 14px;
       font-size: 10px;
@@ -105,6 +105,23 @@ templ Layout(title string) {
     }
     .audio-toggle { font-size: 10px; padding: 6px 12px; }
     .audio-nav    { font-size: 10px; padding: 6px 9px; }
+
+    /* Stack the footer when audio controls are present: top row holds the
+       buttons (centered), bottom row keeps est./baltimore on the sides.
+       Footers without audio controls (e.g. /demo/logo) keep the 3-col row. */
+    .footer:has(.audio-controls) {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto;
+      grid-template-areas:
+        "audio audio"
+        "left  right";
+      row-gap: 6px;
+      padding-top: 6px;
+      padding-bottom: 6px;
+    }
+    .footer:has(.audio-controls) > :first-child    { grid-area: left;  align-self: center; }
+    .footer:has(.audio-controls) > .audio-controls { grid-area: audio; justify-self: center; }
+    .footer:has(.audio-controls) > :last-child     { grid-area: right; align-self: center; }
   }
 
   /* Landscape phones: vertical space is the constraint. The default fire
