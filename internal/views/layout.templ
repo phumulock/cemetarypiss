@@ -101,13 +101,20 @@ templ Layout(title string) {
 
   /* phone / small */
   @media (max-width: 600px) {
-    :root { --navbar-h: 64px; --footer-h: 80px; }
+    :root { --navbar-h: 84px; --footer-h: 80px; }
     .navbar {
-      padding: 0 14px;
+      padding: 8px 14px;
       font-size: 10px;
       letter-spacing: 0.22em;
+      flex-direction: column;
+      justify-content: center;
+      align-items: stretch;
+      gap: 8px;
     }
-    .navbar .links { gap: 12px; }
+    .navbar .links {
+      gap: 14px;
+      justify-content: space-between;
+    }
     .footer {
       padding: 0 14px;
       font-size: 9px;
