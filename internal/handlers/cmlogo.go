@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/phumulock/cemetarypiss/internal/views"
@@ -104,7 +105,7 @@ func newBolt(rng *rand.Rand) *cmBolt {
 	return b
 }
 
-func boltChar(dx int) rune {
+func boltChar(dx int) byte {
 	switch {
 	case dx > 0:
 		return '\\'
@@ -115,7 +116,7 @@ func boltChar(dx int) rune {
 	}
 }
 
-func (b *cmBolt) draw(grid [][]rune, rng *rand.Rand) {
+func (b *cmBolt) draw(grid [][]byte, rng *rand.Rand) {
 	revealed := int(b.head)
 	if revealed > cmLightRows {
 		revealed = cmLightRows
@@ -169,66 +170,133 @@ func cmAdvance(bolts []*cmBolt) []*cmBolt {
 	return out
 }
 
-func DemoCMLogoUpdates(w http.ResponseWriter, r *http.Request) {
-	sse := datastar.NewSSE(w, r)
+// lightningFrame is one rendered lightning grid + the matching flash level,
+// broadcast to every connected client. The RNG-driven bolts look identical to
+// every viewer so there's no reason to recompute per-connection.
+type lightningFrame struct {
+	grid  string
+	flash float64
+}
+
+// lightningHub fans one producer's frames out to N SSE subscribers. The
+// producer starts on first subscribe and exits when the last subscriber leaves.
+type lightningHub struct {
+	mu      sync.Mutex
+	subs    map[chan lightningFrame]struct{}
+	running bool
+}
+
+var globalLightningHub = &lightningHub{subs: make(map[chan lightningFrame]struct{})}
+
+func (h *lightningHub) subscribe() chan lightningFrame {
+	ch := make(chan lightningFrame, 2)
+	h.mu.Lock()
+	h.subs[ch] = struct{}{}
+	start := !h.running
+	if start {
+		h.running = true
+	}
+	h.mu.Unlock()
+	if start {
+		go h.run()
+	}
+	return ch
+}
+
+func (h *lightningHub) unsubscribe(ch chan lightningFrame) {
+	h.mu.Lock()
+	delete(h.subs, ch)
+	h.mu.Unlock()
+}
+
+func (h *lightningHub) run() {
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	ticker := time.NewTicker(time.Second / cmFPS)
 	defer ticker.Stop()
 
-	ctx := r.Context()
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-
 	var bolts []*cmBolt
 	flash := 0.0
+
+	// Reused across frames: avoids the per-frame [][]rune allocation +
+	// strings.Builder churn from the old per-client loop.
+	grid := make([][]byte, cmLightRows)
+	for i := range grid {
+		grid[i] = make([]byte, cmLightCols)
+	}
+	var sb strings.Builder
+
+	for range ticker.C {
+		flash *= cmFlashDecay
+		if flash < 0.005 {
+			flash = 0
+		}
+
+		if len(bolts) < cmMaxBolts && rng.Float64() < 0.18 {
+			bolts = append(bolts, newBolt(rng))
+		}
+		if len(bolts) < cmMaxBolts-2 && rng.Float64() < cmBurstChance {
+			extra := 1 + rng.Intn(2)
+			for i := 0; i < extra; i++ {
+				bolts = append(bolts, newBolt(rng))
+			}
+			flash += cmFlashImpulse
+			if flash > cmFlashCap {
+				flash = cmFlashCap
+			}
+		}
+		bolts = cmAdvance(bolts)
+
+		for i := range grid {
+			row := grid[i]
+			for j := range row {
+				row[j] = ' '
+			}
+		}
+		for _, b := range bolts {
+			b.draw(grid, rng)
+		}
+
+		sb.Reset()
+		sb.Grow((cmLightCols + 1) * cmLightRows)
+		for i, row := range grid {
+			if i > 0 {
+				sb.WriteByte('\n')
+			}
+			sb.Write(row)
+		}
+		frame := lightningFrame{grid: sb.String(), flash: flash}
+
+		h.mu.Lock()
+		if len(h.subs) == 0 {
+			h.running = false
+			h.mu.Unlock()
+			return
+		}
+		for ch := range h.subs {
+			select {
+			case ch <- frame:
+			default:
+			}
+		}
+		h.mu.Unlock()
+	}
+}
+
+func DemoCMLogoUpdates(w http.ResponseWriter, r *http.Request) {
+	sse := datastar.NewSSE(w, r, datastar.WithCompression())
+	ctx := r.Context()
+
+	ch := globalLightningHub.subscribe()
+	defer globalLightningHub.unsubscribe(ch)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			flash *= cmFlashDecay
-			if flash < 0.005 {
-				flash = 0
-			}
-
-			if len(bolts) < cmMaxBolts && rng.Float64() < 0.18 {
-				bolts = append(bolts, newBolt(rng))
-			}
-			if len(bolts) < cmMaxBolts-2 && rng.Float64() < cmBurstChance {
-				extra := 1 + rng.Intn(2) // 1 or 2 additional bolts -> 2-3 total this frame
-				for i := 0; i < extra; i++ {
-					bolts = append(bolts, newBolt(rng))
-				}
-				flash += cmFlashImpulse
-				if flash > cmFlashCap {
-					flash = cmFlashCap
-				}
-			}
-			bolts = cmAdvance(bolts)
-
-			grid := make([][]rune, cmLightRows)
-			for i := range grid {
-				row := make([]rune, cmLightCols)
-				for j := range row {
-					row[j] = ' '
-				}
-				grid[i] = row
-			}
-			for _, b := range bolts {
-				b.draw(grid, rng)
-			}
-
-			var sb strings.Builder
-			sb.Grow((cmLightCols + 1) * cmLightRows)
-			for i, row := range grid {
-				if i > 0 {
-					sb.WriteByte('\n')
-				}
-				sb.WriteString(string(row))
-			}
-
+		case frame := <-ch:
 			if err := sse.MarshalAndPatchSignals(map[string]any{
-				"_lightning": sb.String(),
-				"_flash":     flash,
+				"_lightning": frame.grid,
+				"_flash":     frame.flash,
 			}); err != nil {
 				return
 			}

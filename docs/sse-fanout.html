@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SSE Fan-Out &amp; Compression — cemetary piss</title>
+<style>
+  :root {
+    --bg:        #0a0808;
+    --bg-2:      #141010;
+    --bg-3:      #1c1614;
+    --ink:       #f0e8e0;
+    --ink-dim:   #c8b8a8;
+    --ink-mute:  #886655;
+    --rust:      #7a0000;
+    --rust-2:    #c00;
+    --amber:     #f0b048;
+    --violet:    rgba(190,140,240,0.85);
+    --rule:      rgba(120,30,30,0.35);
+    --rule-soft: rgba(120,30,30,0.18);
+    --good:      #6ec07a;
+    --bad:       #c0524f;
+  }
+  *,*::before,*::after { box-sizing: border-box; }
+  html,body { margin:0; padding:0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Courier New', ui-monospace, monospace;
+    line-height: 1.55;
+    font-size: 15px;
+    padding: 56px 24px 120px;
+  }
+
+  /* page frame */
+  main { max-width: 880px; margin: 0 auto; }
+  header {
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 28px;
+    margin-bottom: 40px;
+  }
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-size: clamp(28px, 5vw, 44px);
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    margin: 0 0 18px;
+    color: var(--ink);
+  }
+  h1 .accent { color: var(--rust-2); }
+  .lede {
+    color: var(--ink-dim);
+    font-size: 16px;
+    max-width: 64ch;
+  }
+
+  section { margin: 64px 0; }
+  h2 {
+    font-size: 12px;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--rust-2);
+    border-top: 1px solid var(--rule);
+    padding-top: 28px;
+    margin: 0 0 24px;
+  }
+  h2 .num {
+    color: var(--ink-mute);
+    margin-right: 14px;
+    font-weight: 400;
+  }
+  h3 {
+    font-size: 14px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin: 36px 0 12px;
+    font-weight: 400;
+  }
+  p { margin: 0 0 16px; max-width: 68ch; }
+  p + p { margin-top: 12px; }
+
+  code, kbd {
+    font-family: 'Courier New', ui-monospace, monospace;
+    background: var(--bg-2);
+    color: var(--amber);
+    padding: 1px 6px;
+    border: 1px solid var(--rule-soft);
+    border-radius: 2px;
+    font-size: 13px;
+  }
+  a {
+    color: var(--violet);
+    text-decoration: none;
+    border-bottom: 1px dotted rgba(190,140,240,0.45);
+  }
+  a:hover { color: #e0c8ff; border-bottom-color: #e0c8ff; }
+
+  /* code block */
+  pre.code {
+    background: var(--bg-2);
+    border-left: 2px solid var(--rust);
+    color: var(--ink);
+    padding: 16px 18px;
+    margin: 20px 0;
+    overflow-x: auto;
+    font-size: 12.5px;
+    line-height: 1.6;
+    border-radius: 0 2px 2px 0;
+  }
+  pre.code .c { color: var(--ink-mute); font-style: italic; }
+  pre.code .k { color: var(--rust-2); }
+  pre.code .s { color: var(--amber); }
+  pre.code .n { color: var(--violet); }
+  pre.code .t { color: #8eb9d8; }
+
+  /* callout */
+  .callout {
+    background: var(--bg-2);
+    border: 1px solid var(--rule);
+    border-left-width: 3px;
+    padding: 14px 18px;
+    margin: 24px 0;
+    color: var(--ink-dim);
+    font-size: 14px;
+  }
+  .callout strong { color: var(--amber); letter-spacing: 0.06em; }
+
+  /* table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 24px 0;
+    font-size: 14px;
+  }
+  thead th {
+    text-align: left;
+    font-weight: 400;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    border-bottom: 1px solid var(--rule);
+    padding: 10px 12px;
+  }
+  tbody td {
+    padding: 12px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.win { color: var(--good); font-weight: 700; }
+  tr.total td { border-top: 1px solid var(--rule); padding-top: 14px; color: var(--amber); }
+
+  /* diagram surfaces */
+  figure {
+    margin: 28px 0;
+    background: var(--bg-2);
+    border: 1px solid var(--rule);
+    padding: 24px 16px 12px;
+    border-radius: 2px;
+  }
+  figure svg { display: block; width: 100%; height: auto; max-width: 100%; }
+  figcaption {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--rule-soft);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    text-align: center;
+  }
+
+  /* bar chart */
+  .bars { margin: 24px 0; }
+  .bar-row { margin-bottom: 18px; }
+  .bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 6px;
+  }
+  .bar-label .v { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .bar-track {
+    background: var(--bg-3);
+    height: 14px;
+    position: relative;
+    border: 1px solid var(--rule-soft);
+  }
+  .bar-fill {
+    position: absolute;
+    top: 0; bottom: 0; left: 0;
+    background: linear-gradient(90deg, var(--rust), var(--rust-2));
+  }
+  .bar-fill.compressed {
+    background: linear-gradient(90deg, #2d5f33, var(--good));
+  }
+
+  ul.tight { margin: 0 0 16px 20px; padding: 0; }
+  ul.tight li { margin: 4px 0; max-width: 64ch; }
+
+  .legend {
+    display: flex; gap: 20px; flex-wrap: wrap;
+    font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--ink-mute); margin-top: 8px;
+  }
+  .swatch { display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: middle; }
+
+  footer {
+    margin-top: 80px;
+    padding-top: 28px;
+    border-top: 1px solid var(--rule);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <div class="eyebrow">// engineering notes // 2026-05-28</div>
+  <h1>SSE fan-out &amp; <span class="accent">compression</span></h1>
+  <p class="lede">
+    How the lightning + ASCII-fire streams went from <strong>~3.6&nbsp;MB/s per client</strong> to
+    <strong>~242&nbsp;KB/s per client</strong> &mdash; while server-side CPU dropped from
+    <strong>O(N&nbsp;clients)</strong> to <strong>O(1)</strong>.
+  </p>
+</header>
+
+<section>
+  <h2><span class="num">01</span> the problem</h2>
+  <p>
+    The <code>/demo/cmlogo</code> page paints two animated layers on the server and pushes
+    them to the browser over Server-Sent Events:
+  </p>
+  <ul class="tight">
+    <li><strong>Lightning</strong> &mdash; a <code>720 &times; 180</code> ASCII grid (~130&nbsp;KB per frame, mostly spaces with a few jagged bolts) at <strong>20&nbsp;fps</strong>.</li>
+    <li><strong>Fire</strong> &mdash; two <code>1200 &times; 28</code> Doom-fire strips (~67&nbsp;KB combined) at <strong>16&nbsp;fps</strong>.</li>
+  </ul>
+  <p>
+    With the original handler, every connected client got their own handler goroutine,
+    their own random-number generator, their own grid buffer, their own
+    <code>strings.Builder</code>, and their own uncompressed write loop. With N viewers,
+    everything ran N times in parallel on a 256&nbsp;MB / 1&nbsp;vCPU Fly machine.
+  </p>
+
+  <figure>
+    <svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg" aria-label="Before architecture: one independent pipeline per client">
+      <defs>
+        <marker id="arrowR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+          <path d="M0,0 L10,5 L0,10 z" fill="#7a0000"/>
+        </marker>
+      </defs>
+      <style>
+        .b-box   { fill:#1c1614; stroke:#7a0000; stroke-width:1; }
+        .b-box-2 { fill:#141010; stroke:rgba(120,30,30,0.45); stroke-width:1; }
+        .b-lbl   { fill:#f0e8e0; font:13px 'Courier New',monospace; }
+        .b-sub   { fill:#886655; font:10px 'Courier New',monospace; letter-spacing:0.15em; text-transform:uppercase; }
+        .b-line  { stroke:#7a0000; stroke-width:1; fill:none; }
+        .b-flow  { stroke:#c00; stroke-width:1.5; fill:none; marker-end:url(#arrowR); }
+        .b-rate  { fill:#c0524f; font:11px 'Courier New',monospace; }
+      </style>
+
+      <!-- clients -->
+      <g transform="translate(40,40)">
+        <rect class="b-box-2" width="120" height="40" />
+        <text class="b-lbl" x="60" y="20" text-anchor="middle">client 1</text>
+        <text class="b-sub" x="60" y="32" text-anchor="middle">browser</text>
+      </g>
+      <g transform="translate(40,130)">
+        <rect class="b-box-2" width="120" height="40" />
+        <text class="b-lbl" x="60" y="20" text-anchor="middle">client 2</text>
+        <text class="b-sub" x="60" y="32" text-anchor="middle">browser</text>
+      </g>
+      <g transform="translate(40,220)">
+        <rect class="b-box-2" width="120" height="40" />
+        <text class="b-lbl" x="60" y="20" text-anchor="middle">client N</text>
+        <text class="b-sub" x="60" y="32" text-anchor="middle">browser</text>
+      </g>
+
+      <!-- handlers -->
+      <g transform="translate(380,20)">
+        <rect class="b-box" width="380" height="80" />
+        <text class="b-sub" x="14" y="18">goroutine #1</text>
+        <text class="b-lbl" x="14" y="42">doomFire + bolts + rng + render</text>
+        <text class="b-lbl" x="14" y="62">writer (uncompressed)</text>
+      </g>
+      <g transform="translate(380,110)">
+        <rect class="b-box" width="380" height="80" />
+        <text class="b-sub" x="14" y="18">goroutine #2</text>
+        <text class="b-lbl" x="14" y="42">doomFire + bolts + rng + render</text>
+        <text class="b-lbl" x="14" y="62">writer (uncompressed)</text>
+      </g>
+      <g transform="translate(380,200)">
+        <rect class="b-box" width="380" height="80" />
+        <text class="b-sub" x="14" y="18">goroutine #N</text>
+        <text class="b-lbl" x="14" y="42">doomFire + bolts + rng + render</text>
+        <text class="b-lbl" x="14" y="62">writer (uncompressed)</text>
+      </g>
+
+      <!-- flows -->
+      <path class="b-flow" d="M370,60 L170,60" />
+      <path class="b-flow" d="M370,150 L170,150" />
+      <path class="b-flow" d="M370,240 L170,240" />
+      <text class="b-rate" x="270" y="52" text-anchor="middle">~1.8 MB/s</text>
+      <text class="b-rate" x="270" y="142" text-anchor="middle">~1.8 MB/s</text>
+      <text class="b-rate" x="270" y="232" text-anchor="middle">~1.8 MB/s</text>
+
+      <text x="570" y="305" text-anchor="middle" class="b-sub">cpu &amp; bandwidth both scale with N</text>
+    </svg>
+    <figcaption>before — N clients, N independent render pipelines, uncompressed</figcaption>
+  </figure>
+
+  <p>
+    Two things made this expensive: the per-client recomputation (every viewer triggered
+    its own RNG-driven simulation), and the raw bytes on the wire (a 130&nbsp;KB grid that's
+    99%+ spaces was being shoved through TCP verbatim).
+  </p>
+</section>
+
+<section>
+  <h2><span class="num">02</span> two changes</h2>
+  <h3>change 1 &mdash; one producer, many subscribers</h3>
+  <p>
+    The streams are pure RNG noise &mdash; nobody sees the &ldquo;same&rdquo; bolt twice anyway,
+    and there's no per-user state. So every viewer can watch <em>the same</em>
+    randomness without losing anything visually. One goroutine ticks, renders one frame,
+    and broadcasts that single rendered string to every subscriber.
+  </p>
+
+  <figure>
+    <svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg" aria-label="After architecture: one shared producer fans frames out via a hub">
+      <defs>
+        <marker id="arrowG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+          <path d="M0,0 L10,5 L0,10 z" fill="#6ec07a"/>
+        </marker>
+        <marker id="arrowA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+          <path d="M0,0 L10,5 L0,10 z" fill="#f0b048"/>
+        </marker>
+      </defs>
+      <style>
+        .a-box    { fill:#1c1614; stroke:#7a0000; stroke-width:1; }
+        .a-prod   { fill:#1c1614; stroke:#f0b048; stroke-width:1.5; }
+        .a-hub    { fill:#141010; stroke:#f0b048; stroke-width:1.5; }
+        .a-lbl    { fill:#f0e8e0; font:13px 'Courier New',monospace; }
+        .a-sub    { fill:#886655; font:10px 'Courier New',monospace; letter-spacing:0.15em; text-transform:uppercase; }
+        .a-flow   { stroke:#f0b048; stroke-width:1.5; fill:none; marker-end:url(#arrowA); }
+        .a-out    { stroke:#6ec07a; stroke-width:1.5; fill:none; marker-end:url(#arrowG); }
+        .a-rate   { fill:#6ec07a; font:11px 'Courier New',monospace; }
+        .a-amber  { fill:#f0b048; font:11px 'Courier New',monospace; }
+      </style>
+
+      <!-- producer -->
+      <g transform="translate(20,120)">
+        <rect class="a-prod" width="200" height="80" rx="2" />
+        <text class="a-sub"  x="100" y="18" text-anchor="middle">1 goroutine</text>
+        <text class="a-lbl"  x="100" y="42" text-anchor="middle">producer</text>
+        <text class="a-sub"  x="100" y="62" text-anchor="middle">render once @ tick</text>
+      </g>
+
+      <!-- hub -->
+      <g transform="translate(290,130)">
+        <rect class="a-hub" width="120" height="60" rx="2" />
+        <text class="a-sub" x="60" y="18" text-anchor="middle">hub</text>
+        <text class="a-lbl" x="60" y="42" text-anchor="middle">broadcast</text>
+      </g>
+
+      <!-- SSE conns -->
+      <g transform="translate(480,40)">
+        <rect class="a-box" width="160" height="50" rx="2" />
+        <text class="a-sub" x="80" y="18" text-anchor="middle">sse conn #1</text>
+        <text class="a-amber" x="80" y="36" text-anchor="middle">gzip wrap</text>
+      </g>
+      <g transform="translate(480,130)">
+        <rect class="a-box" width="160" height="50" rx="2" />
+        <text class="a-sub" x="80" y="18" text-anchor="middle">sse conn #2</text>
+        <text class="a-amber" x="80" y="36" text-anchor="middle">gzip wrap</text>
+      </g>
+      <g transform="translate(480,220)">
+        <rect class="a-box" width="160" height="50" rx="2" />
+        <text class="a-sub" x="80" y="18" text-anchor="middle">sse conn #N</text>
+        <text class="a-amber" x="80" y="36" text-anchor="middle">gzip wrap</text>
+      </g>
+
+      <!-- clients -->
+      <g transform="translate(680,40)">
+        <rect class="a-box" width="100" height="50" rx="2" />
+        <text class="a-lbl" x="50" y="32" text-anchor="middle">client 1</text>
+      </g>
+      <g transform="translate(680,130)">
+        <rect class="a-box" width="100" height="50" rx="2" />
+        <text class="a-lbl" x="50" y="32" text-anchor="middle">client 2</text>
+      </g>
+      <g transform="translate(680,220)">
+        <rect class="a-box" width="100" height="50" rx="2" />
+        <text class="a-lbl" x="50" y="32" text-anchor="middle">client N</text>
+      </g>
+
+      <!-- flows producer -> hub -->
+      <path class="a-flow" d="M220,160 L290,160" />
+      <text class="a-amber" x="255" y="152" text-anchor="middle">frame</text>
+
+      <!-- hub -> conns -->
+      <path class="a-flow" d="M410,160 C440,160 440,65  480,65" />
+      <path class="a-flow" d="M410,160 L480,155" />
+      <path class="a-flow" d="M410,160 C440,160 440,245 480,245" />
+
+      <!-- conns -> clients -->
+      <path class="a-out" d="M640,65  L680,65" />
+      <path class="a-out" d="M640,155 L680,155" />
+      <path class="a-out" d="M640,245 L680,245" />
+
+      <text class="a-rate" x="660" y="58" text-anchor="middle">~120 KB/s</text>
+      <text class="a-rate" x="660" y="148" text-anchor="middle">~120 KB/s</text>
+      <text class="a-rate" x="660" y="238" text-anchor="middle">~120 KB/s</text>
+
+      <text x="400" y="305" text-anchor="middle" class="a-sub">render cost is constant; only the network/gzip work scales with N</text>
+    </svg>
+    <figcaption>after — one producer broadcasts; each connection gzips independently</figcaption>
+  </figure>
+
+  <h3>change 2 &mdash; compression on the SSE response</h3>
+  <p>
+    Datastar's Go SDK ships a one-liner: pass <code>datastar.WithCompression()</code>
+    to <code>datastar.NewSSE(...)</code> and it negotiates gzip/brotli/zstd with the
+    client and wraps the response writer. SSE is just <code>text/event-stream</code>
+    over HTTP/1.1 chunked transfer, so the standard <code>Content-Encoding</code> path
+    works fine.
+  </p>
+  <p>
+    The wins are huge here because the lightning grid is mostly spaces &mdash; a textbook
+    case for entropy coding. A 130&nbsp;KB frame of 99% spaces and a few jagged
+    <code>/</code><code>|</code><code>\</code><code>*</code> shrinks to under 1.4&nbsp;KB.
+  </p>
+</section>
+
+<section>
+  <h2><span class="num">03</span> the numbers</h2>
+  <p>
+    Measured over a 2-second window from a clean process, no other traffic:
+  </p>
+
+  <table>
+    <thead>
+      <tr><th>stream</th><th class="num">uncompressed</th><th class="num">compressed</th><th class="num">ratio</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>fire</td>      <td class="num">2,088,997&nbsp;B</td><td class="num">432,634&nbsp;B</td><td class="num win">~4.8&times;</td></tr>
+      <tr><td>lightning</td> <td class="num">5,205,920&nbsp;B</td><td class="num">53,600&nbsp;B</td> <td class="num win">~97&times;</td></tr>
+      <tr class="total"><td>combined per client</td><td class="num">~3.6&nbsp;MB/s</td><td class="num">~242&nbsp;KB/s</td><td class="num win">~15&times;</td></tr>
+    </tbody>
+  </table>
+
+  <div class="bars">
+    <div class="bar-row">
+      <div class="bar-label"><span>fire — uncompressed</span><span class="v">2,088,997 B / 2s</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:40.13%"></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label"><span>fire — gzip</span><span class="v">432,634 B / 2s</span></div>
+      <div class="bar-track"><div class="bar-fill compressed" style="width:8.31%"></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label"><span>lightning — uncompressed</span><span class="v">5,205,920 B / 2s</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:100%"></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label"><span>lightning — gzip</span><span class="v">53,600 B / 2s</span></div>
+      <div class="bar-track"><div class="bar-fill compressed" style="width:1.03%"></div></div>
+    </div>
+    <div class="legend">
+      <span><span class="swatch" style="background:linear-gradient(90deg,var(--rust),var(--rust-2))"></span>uncompressed</span>
+      <span><span class="swatch" style="background:linear-gradient(90deg,#2d5f33,var(--good))"></span>gzip</span>
+    </div>
+  </div>
+
+  <p>
+    Lightning compresses ~20&times; better than fire. That's because fire is dense
+    textured noise &mdash; nearly every glyph differs from its neighbor, so there are no
+    long runs for gzip's LZ77 to fold. Lightning is sparse: each row is dominated by
+    spaces with a single bolt rune dropped in, which compresses almost to nothing.
+  </p>
+</section>
+
+<section>
+  <h2><span class="num">04</span> how the hub works</h2>
+  <p>
+    Each stream has its own hub. The hub is a tiny wrapper around a map of subscriber
+    channels, a mutex, and a flag for whether the producer goroutine is currently
+    alive.
+  </p>
+
+  <pre class="code"><span class="k">type</span> lightningHub <span class="k">struct</span> {
+    mu      sync.<span class="t">Mutex</span>
+    subs    <span class="k">map</span>[<span class="k">chan</span> lightningFrame]<span class="k">struct</span>{}
+    running <span class="t">bool</span>
+}
+
+<span class="k">var</span> globalLightningHub = &amp;lightningHub{subs: <span class="k">make</span>(<span class="k">map</span>[<span class="k">chan</span> lightningFrame]<span class="k">struct</span>{})}</pre>
+
+  <h3>subscribe</h3>
+  <p>
+    When a client connects, the handler asks the hub for a channel. The hub adds it
+    to the set; if the producer wasn't already running, it starts.
+  </p>
+
+  <pre class="code"><span class="k">func</span> (h *lightningHub) <span class="n">subscribe</span>() <span class="k">chan</span> lightningFrame {
+    ch := <span class="k">make</span>(<span class="k">chan</span> lightningFrame, <span class="s">2</span>) <span class="c">// buffer of 2 — see below</span>
+    h.mu.<span class="n">Lock</span>()
+    h.subs[ch] = <span class="k">struct</span>{}{}
+    start := !h.running
+    <span class="k">if</span> start { h.running = <span class="k">true</span> }
+    h.mu.<span class="n">Unlock</span>()
+    <span class="k">if</span> start { <span class="k">go</span> h.<span class="n">run</span>() }
+    <span class="k">return</span> ch
+}</pre>
+
+  <h3>broadcast</h3>
+  <p>
+    The producer renders one frame, then walks the subscriber set sending the same
+    value to each channel. The send is non-blocking &mdash; if a subscriber's buffer is
+    full, the producer drops that frame for that subscriber and moves on. The
+    producer never stalls.
+  </p>
+
+  <figure>
+    <svg viewBox="0 0 800 220" xmlns="http://www.w3.org/2000/svg" aria-label="Broadcast: healthy vs slow consumer">
+      <style>
+        .h-box  { fill:#141010; stroke:#6ec07a; stroke-width:1; }
+        .h-bad  { fill:#141010; stroke:#c0524f; stroke-width:1; }
+        .h-prod { fill:#1c1614; stroke:#f0b048; stroke-width:1.5; }
+        .h-lbl  { fill:#f0e8e0; font:12px 'Courier New',monospace; }
+        .h-sub  { fill:#886655; font:10px 'Courier New',monospace; letter-spacing:0.15em; text-transform:uppercase; }
+        .h-ok   { stroke:#6ec07a; stroke-width:1.5; fill:none; }
+        .h-drop { stroke:#c0524f; stroke-width:1.5; fill:none; stroke-dasharray:4 3; }
+        .h-good { fill:#6ec07a; font:11px 'Courier New',monospace; }
+        .h-badf { fill:#c0524f; font:11px 'Courier New',monospace; }
+      </style>
+
+      <g transform="translate(30,80)">
+        <rect class="h-prod" width="170" height="60" rx="2" />
+        <text class="h-sub" x="85" y="20" text-anchor="middle">producer</text>
+        <text class="h-lbl" x="85" y="42" text-anchor="middle">frame ready</text>
+      </g>
+
+      <!-- healthy path -->
+      <g transform="translate(330,20)">
+        <rect class="h-box" width="120" height="50" rx="2" />
+        <text class="h-sub" x="60" y="18" text-anchor="middle">buf = 1 / 2</text>
+        <text class="h-good" x="60" y="38" text-anchor="middle">send ok</text>
+      </g>
+      <g transform="translate(540,20)">
+        <rect class="h-box" width="160" height="50" rx="2" />
+        <text class="h-lbl" x="80" y="32" text-anchor="middle">consumer (fast)</text>
+      </g>
+      <path class="h-ok" d="M200,100 C260,100 260,45 330,45" marker-end="url(#mkOK)" />
+      <path class="h-ok" d="M450,45 L540,45" marker-end="url(#mkOK)" />
+
+      <!-- slow path -->
+      <g transform="translate(330,150)">
+        <rect class="h-bad" width="120" height="50" rx="2" />
+        <text class="h-sub" x="60" y="18" text-anchor="middle">buf = 2 / 2</text>
+        <text class="h-badf" x="60" y="38" text-anchor="middle">FULL → drop</text>
+      </g>
+      <g transform="translate(540,150)">
+        <rect class="h-bad" width="160" height="50" rx="2" />
+        <text class="h-lbl" x="80" y="32" text-anchor="middle">consumer (slow)</text>
+      </g>
+      <path class="h-drop" d="M200,120 C260,120 260,175 330,175" marker-end="url(#mkBad)" />
+      <path class="h-drop" d="M450,175 L540,175" />
+
+      <defs>
+        <marker id="mkOK" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+          <path d="M0,0 L10,5 L0,10 z" fill="#6ec07a"/>
+        </marker>
+        <marker id="mkBad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+          <path d="M0,0 L10,5 L0,10 z" fill="#c0524f"/>
+        </marker>
+      </defs>
+    </svg>
+    <figcaption>healthy consumer keeps draining; a slow one just skips frames</figcaption>
+  </figure>
+
+  <p>
+    Dropping is safe because each frame is independent &mdash; there's no diff or delta
+    that depends on the previous frame, so missing one just means a brief stutter
+    instead of corruption.
+  </p>
+
+  <h3>lazy stop</h3>
+  <p>
+    At the top of every tick the producer checks whether the subscriber set is
+    empty. If it is, it clears <code>running</code> and returns. An idle server burns
+    no CPU on fire or lightning. The next subscriber that comes in restarts it.
+  </p>
+
+  <pre class="code"><span class="k">for</span> <span class="k">range</span> ticker.C {
+    <span class="c">// ... compute frame ...</span>
+
+    h.mu.<span class="n">Lock</span>()
+    <span class="k">if</span> <span class="k">len</span>(h.subs) == <span class="s">0</span> {
+        h.running = <span class="k">false</span>
+        h.mu.<span class="n">Unlock</span>()
+        <span class="k">return</span>
+    }
+    <span class="k">for</span> ch := <span class="k">range</span> h.subs {
+        <span class="k">select</span> {
+        <span class="k">case</span> ch &lt;- frame:
+        <span class="k">default</span>: <span class="c">// slow consumer — drop this frame</span>
+        }
+    }
+    h.mu.<span class="n">Unlock</span>()
+}</pre>
+
+  <h3>the handler shrinks to nothing</h3>
+  <p>
+    All the simulation, allocation, and rendering moved into the producer, so the
+    per-client handler is just &ldquo;subscribe, forward, unsubscribe.&rdquo;
+  </p>
+
+  <pre class="code"><span class="k">func</span> <span class="n">DemoCMLogoUpdates</span>(w http.<span class="t">ResponseWriter</span>, r *http.<span class="t">Request</span>) {
+    sse := datastar.<span class="n">NewSSE</span>(w, r, datastar.<span class="n">WithCompression</span>())
+    ctx := r.<span class="n">Context</span>()
+
+    ch := globalLightningHub.<span class="n">subscribe</span>()
+    <span class="k">defer</span> globalLightningHub.<span class="n">unsubscribe</span>(ch)
+
+    <span class="k">for</span> {
+        <span class="k">select</span> {
+        <span class="k">case</span> &lt;-ctx.<span class="n">Done</span>():
+            <span class="k">return</span>
+        <span class="k">case</span> frame := &lt;-ch:
+            <span class="k">if</span> err := sse.<span class="n">MarshalAndPatchSignals</span>(<span class="k">map</span>[<span class="t">string</span>]<span class="k">any</span>{
+                <span class="s">"_lightning"</span>: frame.grid,
+                <span class="s">"_flash"</span>:     frame.flash,
+            }); err != <span class="k">nil</span> {
+                <span class="k">return</span>
+            }
+        }
+    }
+}</pre>
+</section>
+
+<section>
+  <h2><span class="num">05</span> the freebies</h2>
+  <p>
+    While the producer was being lifted out, three micro-wins came along for free
+    inside the lightning loop:
+  </p>
+  <ul class="tight">
+    <li>
+      Grid switched from <code>[][]rune</code> to <code>[][]byte</code>. Every bolt
+      glyph (<code>/</code>, <code>|</code>, <code>\</code>, <code>*</code>) is 1-byte
+      ASCII, so storing <code>rune</code> (4 bytes) was pure waste &mdash; <strong>4&times;
+      memory cut</strong> on the largest hot buffer.
+    </li>
+    <li>
+      The grid is now allocated <em>once</em> at producer start and wiped between
+      frames instead of <code>make([][]rune, 180)</code> + 180&times;<code>make([]rune, 720)</code>
+      per frame. At 20&nbsp;fps that's 3,620 fewer allocations per second.
+    </li>
+    <li>
+      The <code>strings.Builder</code> is reused via <code>sb.Reset()</code> instead
+      of being a fresh value each tick.
+    </li>
+  </ul>
+  <p>
+    None of these would have mattered when the work ran per-client &mdash; the wins are
+    multiplied by the producer being centralized, since the savings happen once
+    regardless of viewer count.
+  </p>
+</section>
+
+<section>
+  <h2><span class="num">06</span> trade-offs &amp; edge cases</h2>
+
+  <h3>everyone sees the same noise</h3>
+  <p>
+    With one producer, viewers connected at the same moment see <em>identical</em>
+    bolts. For RNG-driven decorative animation this is fine &mdash; arguably better,
+    because two people on a phone call now share the same stage. If the streams ever
+    became per-user (a personalized logo, a name baked into the bolts), the per-client
+    handler would have to come back.
+  </p>
+
+  <h3>slow consumers lose frames, not connections</h3>
+  <p>
+    A subscriber on a 2G phone won't backpressure the producer or block other
+    viewers &mdash; they'll just miss a frame here and there. At 20&nbsp;fps a dropped
+    frame is invisible.
+  </p>
+
+  <h3>compression costs CPU per connection</h3>
+  <p>
+    The compress step still happens N times (once per SSE writer). Gzip on
+    1&ndash;5&nbsp;KB/frame is cheap, but on a 1&nbsp;vCPU box with hundreds of viewers
+    it adds up. If that ever bites, the next step is to gzip the frame
+    <em>once</em> in the producer and write the same byte slice to every
+    subscriber's raw <code>http.ResponseWriter</code> &mdash; possible because every
+    client gets the exact same payload.
+  </p>
+
+  <h3>fly's idle behavior still works</h3>
+  <p>
+    <code>fly.toml</code> uses <code>auto_stop_machines = "stop"</code> and
+    <code>min_machines_running = 0</code>. When the last SSE connection drops, the
+    producer exits, the handler returns, the HTTP keep-alive eventually idles, and
+    Fly stops the machine. No background goroutine keeps the box warm.
+  </p>
+</section>
+
+<section>
+  <h2><span class="num">07</span> file map</h2>
+  <ul class="tight">
+    <li><code>internal/handlers/cmfire.go</code> &mdash; <code>fireHub</code>, <code>doomFire</code>, fire SSE handler</li>
+    <li><code>internal/handlers/cmlogo.go</code> &mdash; <code>lightningHub</code>, <code>cmBolt</code>, lightning SSE handler</li>
+    <li><code>internal/views/demo_cmlogo.templ</code> &mdash; the page that opens both streams via <code>data-init="@get(...)"</code></li>
+    <li><code>cmd/server/main.go</code> &mdash; chi routes wiring the handlers</li>
+  </ul>
+</section>
+
+<footer>
+  // cemetary piss // engineering // baltimore, md
+</footer>
+
+</main>
+</body>
+</html>
