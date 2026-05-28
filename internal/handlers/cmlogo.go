@@ -20,7 +20,7 @@ const (
 	// Density tuned for portrait phones: only ~30% of the cols are on-screen
 	// there (the rest overflows and is clipped by .logo-stage), so a generous
 	// max keeps the visible center busy without flooding widescreen viewers.
-	cmMaxBolts = 18
+	cmMaxBolts = 10
 )
 
 func DemoCMLogoPage(w http.ResponseWriter, r *http.Request) {
@@ -173,7 +173,7 @@ func DemoCMLogoUpdates(w http.ResponseWriter, r *http.Request) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if len(bolts) < cmMaxBolts && rng.Float64() < 0.35 {
+			if len(bolts) < cmMaxBolts && rng.Float64() < 0.18 {
 				bolts = append(bolts, newBolt(rng))
 			}
 			bolts = cmAdvance(bolts)
