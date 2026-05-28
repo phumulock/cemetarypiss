@@ -82,11 +82,11 @@ templ Layout(title string) {
      can fill more of the screen. */
   @media (max-width: 1000px) {
     :root { --navbar-h: 56px; --footer-h: 48px; }
-    .navbar { padding: 0 16px; font-size: 13px; }
+    .navbar { padding: 0 16px; font-size: 11px; }
     .navbar .links { gap: 16px; }
-    .footer { padding: 0 16px; font-size: 12px; }
-    .audio-toggle { font-size: 12px; padding: 6px 14px; }
-    .audio-nav    { font-size: 12px; padding: 6px 10px; }
+    .footer { padding: 0 16px; font-size: 10px; }
+    .audio-toggle { font-size: 11px; padding: 6px 14px; }
+    .audio-nav    { font-size: 11px; padding: 6px 10px; }
   }
 
   /* phone / small */
@@ -94,17 +94,17 @@ templ Layout(title string) {
     :root { --navbar-h: 64px; --footer-h: 56px; }
     .navbar {
       padding: 0 14px;
-      font-size: 14px;
+      font-size: 10px;
       letter-spacing: 0.22em;
     }
     .navbar .links { gap: 12px; }
     .footer {
       padding: 0 14px;
-      font-size: 13px;
+      font-size: 9px;
       letter-spacing: 0.22em;
     }
-    .audio-toggle { font-size: 13px; padding: 7px 14px; }
-    .audio-nav    { font-size: 13px; padding: 7px 10px; }
+    .audio-toggle { font-size: 10px; padding: 6px 12px; }
+    .audio-nav    { font-size: 10px; padding: 6px 9px; }
   }
 
   /* Landscape phones: vertical space is the constraint. The default fire
