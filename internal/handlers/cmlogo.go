@@ -20,7 +20,7 @@ const (
 	// Density tuned for portrait phones: only ~30% of the cols are on-screen
 	// there (the rest overflows and is clipped by .logo-stage), so a generous
 	// max keeps the visible center busy without flooding widescreen viewers.
-	cmMaxBolts = 18
+	cmMaxBolts = 10
 
 	// Flash kicks when 2+ bolts strike in the same frame (a "burst"). The
 	// signal is the overlay opacity; decay is per-frame at cmFPS so the fade
@@ -188,7 +188,7 @@ func DemoCMLogoUpdates(w http.ResponseWriter, r *http.Request) {
 				flash = 0
 			}
 
-			if len(bolts) < cmMaxBolts && rng.Float64() < 0.35 {
+			if len(bolts) < cmMaxBolts && rng.Float64() < 0.18 {
 				bolts = append(bolts, newBolt(rng))
 			}
 			if len(bolts) < cmMaxBolts-2 && rng.Float64() < cmBurstChance {
