@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/starfederation/datastar-go/datastar"
@@ -148,29 +149,93 @@ func (f *doomFire) render(flip bool) string {
 	return sb.String()
 }
 
-func DemoCMFire(w http.ResponseWriter, r *http.Request) {
-	sse := datastar.NewSSE(w, r)
-	ticker := time.NewTicker(time.Second / fireFPS)
-	defer ticker.Stop()
+// fireFrame is one rendered fire frame, broadcast to every connected client.
+// Because the fire is pure RNG noise, every client sees the same field — so
+// there's no reason to recompute per-connection.
+type fireFrame struct {
+	top    string
+	bottom string
+}
 
-	ctx := r.Context()
+// fireHub fans one producer's frames out to N SSE subscribers. The producer
+// starts on the first subscribe and exits when the last subscriber leaves, so
+// an idle server does no fire work.
+type fireHub struct {
+	mu      sync.Mutex
+	subs    map[chan fireFrame]struct{}
+	running bool
+}
+
+var globalFireHub = &fireHub{subs: make(map[chan fireFrame]struct{})}
+
+func (h *fireHub) subscribe() chan fireFrame {
+	// Buffer of 2: tolerates a one-frame stall from a slow consumer without
+	// blocking the producer; deeper buffers just add visible latency.
+	ch := make(chan fireFrame, 2)
+	h.mu.Lock()
+	h.subs[ch] = struct{}{}
+	start := !h.running
+	if start {
+		h.running = true
+	}
+	h.mu.Unlock()
+	if start {
+		go h.run()
+	}
+	return ch
+}
+
+func (h *fireHub) unsubscribe(ch chan fireFrame) {
+	h.mu.Lock()
+	delete(h.subs, ch)
+	h.mu.Unlock()
+}
+
+func (h *fireHub) run() {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	top := newDoomFire(rng)
 	bottom := newDoomFire(rng)
+	ticker := time.NewTicker(time.Second / fireFPS)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		top.stoke()
+		top.update()
+		bottom.stoke()
+		bottom.update()
+		frame := fireFrame{top: top.render(true), bottom: bottom.render(false)}
+
+		h.mu.Lock()
+		if len(h.subs) == 0 {
+			h.running = false
+			h.mu.Unlock()
+			return
+		}
+		for ch := range h.subs {
+			select {
+			case ch <- frame:
+			default: // slow consumer: drop this frame for them, don't stall the producer
+			}
+		}
+		h.mu.Unlock()
+	}
+}
+
+func DemoCMFire(w http.ResponseWriter, r *http.Request) {
+	sse := datastar.NewSSE(w, r, datastar.WithCompression())
+	ctx := r.Context()
+
+	ch := globalFireHub.subscribe()
+	defer globalFireHub.unsubscribe(ch)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			top.stoke()
-			top.update()
-			bottom.stoke()
-			bottom.update()
-
+		case frame := <-ch:
 			if err := sse.MarshalAndPatchSignals(map[string]any{
-				"_fireTop":    top.render(true),
-				"_fireBottom": bottom.render(false),
+				"_fireTop":    frame.top,
+				"_fireBottom": frame.bottom,
 			}); err != nil {
 				return
 			}
