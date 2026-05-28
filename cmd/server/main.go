@@ -30,15 +30,11 @@ func main() {
 	r.Post("/demo/dismiss", handlers.DemoDismiss)
 	r.Post("/demo/greet", handlers.DemoGreet)
 
-	r.Get("/audio/01-intro.mp3", func(w http.ResponseWriter, req *http.Request) {
-		http.ServeFile(w, req, "./01 - Intro.mp3")
-	})
-	r.Get("/audio/04-terrorvoid.mp3", func(w http.ResponseWriter, req *http.Request) {
-		http.ServeFile(w, req, "./04 - Terrorvoid.mp3")
-	})
-
 	staticFS := http.FileServer(http.Dir("./static"))
 	r.Handle("/static/*", http.StripPrefix("/static/", staticFS))
+
+	audioFS := http.FileServer(http.Dir("./static/audio"))
+	r.Handle("/audio/*", http.StripPrefix("/audio/", audioFS))
 
 	addr := ":8080"
 	log.Printf("listening on http://localhost%s", addr)
