@@ -10,7 +10,7 @@ templ DemoCMLogo() {
 		</div>
 		<div
 			class="logo-stage"
-			data-signals="{_lightning: '', _fireTop: '', _fireBottom: ''}"
+			data-signals="{_lightning: '', _fireTop: '', _fireBottom: '', _flash: 0}"
 			data-init="@get('/demo/cmlogo/updates')"
 		>
 			<pre
@@ -24,6 +24,7 @@ templ DemoCMLogo() {
 				<pre id="logo">{ CMLogoText }</pre>
 			</div>
 			<pre id="fire-bottom" class="fire-ascii" data-text="$_fireBottom"></pre>
+			<div class="lightning-flash" data-style:opacity="$_flash"></div>
 		</div>
 		<div class="footer">
 			<div>est. mmxxvi</div>

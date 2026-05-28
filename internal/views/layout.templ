@@ -190,6 +190,27 @@ templ Layout(title string) {
     font-size: calc((100vh - var(--navbar-h) - var(--footer-h)) / 180);
     font-size: calc((100dvh - var(--navbar-h) - var(--footer-h)) / 180);
   }
+  /* Subtle white-out when multiple bolts strike at once. Sits above the fire
+     strips so it brightens the whole stage, with `screen` blend so it lifts
+     existing colors rather than painting over them. Opacity is driven by the
+     server's `_flash` signal (0..0.22); the short transition smooths the 20fps
+     step into a continuous fade. */
+  .lightning-flash {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center,
+                  rgba(224, 210, 255, 0.85) 0%,
+                  rgba(180, 160, 230, 0.35) 55%,
+                  transparent 100%);
+    mix-blend-mode: screen;
+    opacity: 0;
+    z-index: 3;
+    pointer-events: none;
+    transition: opacity 80ms ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .lightning-flash { display: none; }
+  }
   .logo-slider {
     flex: 0 0 auto;
     display: flex;

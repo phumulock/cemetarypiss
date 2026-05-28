@@ -21,6 +21,15 @@ const (
 	// there (the rest overflows and is clipped by .logo-stage), so a generous
 	// max keeps the visible center busy without flooding widescreen viewers.
 	cmMaxBolts = 18
+
+	// Flash kicks when 2+ bolts strike in the same frame (a "burst"). The
+	// signal is the overlay opacity; decay is per-frame at cmFPS so the fade
+	// lasts ~200-300ms — long enough to read as a flash, short enough that it
+	// doesn't wash the scene.
+	cmBurstChance  = 0.06 // per frame, on top of the normal single-bolt spawn
+	cmFlashImpulse = 0.16 // opacity added per burst
+	cmFlashCap     = 0.22 // hard cap keeps it subtle even on rapid bursts
+	cmFlashDecay   = 0.74 // multiplier each frame
 )
 
 func DemoCMLogoPage(w http.ResponseWriter, r *http.Request) {
@@ -167,14 +176,30 @@ func DemoCMLogoUpdates(w http.ResponseWriter, r *http.Request) {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	var bolts []*cmBolt
+	flash := 0.0
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			flash *= cmFlashDecay
+			if flash < 0.005 {
+				flash = 0
+			}
+
 			if len(bolts) < cmMaxBolts && rng.Float64() < 0.35 {
 				bolts = append(bolts, newBolt(rng))
+			}
+			if len(bolts) < cmMaxBolts-2 && rng.Float64() < cmBurstChance {
+				extra := 1 + rng.Intn(2) // 1 or 2 additional bolts -> 2-3 total this frame
+				for i := 0; i < extra; i++ {
+					bolts = append(bolts, newBolt(rng))
+				}
+				flash += cmFlashImpulse
+				if flash > cmFlashCap {
+					flash = cmFlashCap
+				}
 			}
 			bolts = cmAdvance(bolts)
 
@@ -199,7 +224,10 @@ func DemoCMLogoUpdates(w http.ResponseWriter, r *http.Request) {
 				sb.WriteString(string(row))
 			}
 
-			if err := sse.MarshalAndPatchSignals(map[string]any{"_lightning": sb.String()}); err != nil {
+			if err := sse.MarshalAndPatchSignals(map[string]any{
+				"_lightning": sb.String(),
+				"_flash":     flash,
+			}); err != nil {
 				return
 			}
 		}
