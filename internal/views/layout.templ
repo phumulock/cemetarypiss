@@ -137,6 +137,10 @@ templ Layout(title string) {
     .audio-toggle { font-size: 10px; padding: 4px 10px; }
     .audio-nav    { font-size: 10px; padding: 4px 8px; }
     .fire-ascii { font-size: clamp(1.2px, 100vh / 320, 2.5px); }
+    /* Home-page fire strips overlay the top/bottom of the logo canvas. On
+       landscape phones vertical space is the constraint, so halve the strip
+       height to expose more of the logo. */
+    .fire-strip { height: 10px; }
   }
 
   .audio-controls {
